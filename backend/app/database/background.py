@@ -114,128 +114,122 @@ async def auto_refresh_materialized_view():
 
 
 async def add_to_cart():
-    """Automatically adds a new item to a shopping cart at a fixed internal"""
-    async def insert_item():
-        try:
-            async with postgres_pool.acquire() as conn:
-                # First, check if product_id 1 exists in the cart
-                has_product_one = await conn.fetchval("""
-                    SELECT EXISTS(
-                        SELECT 1 FROM shopping_cart WHERE product_id = 1
-                    )
-                """)
-
-                # If product_id 1 doesn't exist, insert it first
-                if not has_product_one:
-                    await conn.execute("""
-                        INSERT INTO shopping_cart (product_id, product_name, category_id, price)
-                        SELECT product_id, product_name, category_id, base_price 
-                        FROM products
-                        WHERE product_id = 1;
-                    """)
-                    
-                    # Check if inventory exists for product 1
-                    has_inventory = await conn.fetchval("""
-                        SELECT EXISTS(
-                            SELECT 1 FROM inventory WHERE product_id = 1
-                        )
-                    """)
-                    
-                    if not has_inventory:
-                        # Reset the sequence to the maximum value to avoid conflicts
-                        await conn.execute("""
-                            SELECT setval('inventory_inventory_id_seq', 
-                                        COALESCE((SELECT MAX(inventory_id) FROM inventory), 0))
-                        """)
-                        # Insert new inventory record
-                        await conn.execute("""
-                            INSERT INTO inventory (inventory_id, product_id, warehouse_id, stock, restock_date)
-                            VALUES (nextval('inventory_inventory_id_seq'), 1, 1, 
-                                   floor(random() * (25 - 5 + 1) + 5)::int, 
-                                   NOW() + interval '30 days')
-                        """)
-                    else:
-                        # Update existing inventory record
-                        await conn.execute("""
-                            UPDATE inventory 
-                            SET stock = floor(random() * (25 - 5 + 1) + 5)::int,
-                                restock_date = NOW() + interval '30 days'
-                            WHERE product_id = 1
-                        """)
-
-                # Then insert a random product
-                product = await conn.fetchrow("""
-                    WITH selected_product AS (
-                        SELECT product_id, product_name, category_id, base_price 
-                        FROM products
-                        WHERE product_id != 1
-                        ORDER BY RANDOM()
-                        LIMIT 1
-                    )
-                    INSERT INTO shopping_cart (product_id, product_name, category_id, price)
-                    SELECT product_id, product_name, category_id, base_price 
-                    FROM selected_product
-                    RETURNING product_id;
-                """)
-                
-                if product:
-                    # Check if inventory exists for the random product
-                    has_inventory = await conn.fetchval("""
-                        SELECT EXISTS(
-                            SELECT 1 FROM inventory WHERE product_id = $1
-                        )
-                    """, product['product_id'])
-                    
-                    if not has_inventory:
-                        # Reset the sequence to the maximum value to avoid conflicts
-                        await conn.execute("""
-                            SELECT setval('inventory_inventory_id_seq', 
-                                        COALESCE((SELECT MAX(inventory_id) FROM inventory), 0))
-                        """)
-                        # Insert new inventory record
-                        await conn.execute("""
-                            INSERT INTO inventory (inventory_id, product_id, warehouse_id, stock, restock_date)
-                            VALUES (nextval('inventory_inventory_id_seq'), $1, 1, 
-                                   floor(random() * (25 - 5 + 1) + 5)::int, 
-                                   NOW() + interval '30 days')
-                        """, product['product_id'])
-                    else:
-                        # Update existing inventory record
-                        await conn.execute("""
-                            UPDATE inventory 
-                            SET stock = floor(random() * (25 - 5 + 1) + 5)::int,
-                                restock_date = NOW() + interval '30 days'
-                            WHERE product_id = $1
-                        """, product['product_id'])
-        except Exception as e:
-            logger.error(f"Error adding item to shopping cart: {str(e)}", exc_info=True)
-            raise
-
-    async def delete_item():
-        try:
-            async with postgres_pool.acquire() as conn:
-                await conn.execute("""
-                    DELETE FROM shopping_cart
-                    WHERE ts IN (
-                        SELECT ts 
-                        FROM shopping_cart 
-                        WHERE product_id != 1
-                        ORDER BY RANDOM() 
-                        LIMIT 1
-                    )
-                """)
-        except Exception as e:
-            logger.error(f"Error removing item from shopping cart: {str(e)}", exc_info=True)
-            raise
-
-    # Initialize cart with 10 random items (product 1 will be included)
+    """Automatically adds a new item to a shopping cart at a fixed interval."""
+    # Initialize cart with 10 random items
     for _ in range(10):
-        await insert_item()
+        await _insert_cart_item()
 
     while True:
-        await insert_item()
-        await delete_item()
-        await asyncio.sleep(30.0)  # Sleep for 30 seconds
+        await _insert_cart_item()
+        await _delete_random_cart_item()
+        await asyncio.sleep(30.0)
+
+
+async def _insert_cart_item():
+    """Insert a single item into the shopping cart."""
+    try:
+        async with postgres_pool.acquire() as conn:
+            # Ensure product 1 is always in cart
+            await _ensure_product_one_in_cart(conn)
+            
+            # Add a random product
+            await _add_random_product_to_cart(conn)
+    except Exception as e:
+        logger.error(f"Error adding item to shopping cart: {str(e)}", exc_info=True)
+        raise
+
+
+async def _ensure_product_one_in_cart(conn):
+    """Ensure product ID 1 is always present in the shopping cart."""
+    has_product_one = await conn.fetchval("""
+        SELECT EXISTS(SELECT 1 FROM shopping_cart WHERE product_id = 1)
+    """)
+
+    if not has_product_one:
+        await conn.execute("""
+            INSERT INTO shopping_cart (product_id, product_name, category_id, price)
+            SELECT product_id, product_name, category_id, base_price 
+            FROM products WHERE product_id = 1
+        """)
+        await _ensure_inventory_exists(conn, 1)
+
+
+async def _add_random_product_to_cart(conn):
+    """Add a random product (excluding product 1) to the cart."""
+    product = await conn.fetchrow("""
+        WITH selected_product AS (
+            SELECT product_id, product_name, category_id, base_price 
+            FROM products
+            WHERE product_id != 1
+            ORDER BY RANDOM()
+            LIMIT 1
+        )
+        INSERT INTO shopping_cart (product_id, product_name, category_id, price)
+        SELECT product_id, product_name, category_id, base_price 
+        FROM selected_product
+        RETURNING product_id
+    """)
+    
+    if product:
+        await _ensure_inventory_exists(conn, product['product_id'])
+
+
+async def _ensure_inventory_exists(conn, product_id: int):
+    """Ensure inventory exists for a product, creating or updating as needed."""
+    has_inventory = await conn.fetchval("""
+        SELECT EXISTS(SELECT 1 FROM inventory WHERE product_id = $1)
+    """, product_id)
+    
+    if not has_inventory:
+        await _create_inventory_record(conn, product_id)
+    else:
+        await _update_inventory_record(conn, product_id)
+
+
+async def _create_inventory_record(conn, product_id: int):
+    """Create a new inventory record for a product."""
+    # Reset sequence to avoid conflicts
+    await conn.execute("""
+        SELECT setval('inventory_inventory_id_seq', 
+                    COALESCE((SELECT MAX(inventory_id) FROM inventory), 0))
+    """)
+    
+    # Insert new inventory record
+    await conn.execute("""
+        INSERT INTO inventory (inventory_id, product_id, warehouse_id, stock, restock_date)
+        VALUES (nextval('inventory_inventory_id_seq'), $1, 1, 
+               floor(random() * (25 - 5 + 1) + 5)::int, 
+               NOW() + interval '30 days')
+    """, product_id)
+
+
+async def _update_inventory_record(conn, product_id: int):
+    """Update existing inventory record with new stock and restock date."""
+    await conn.execute("""
+        UPDATE inventory 
+        SET stock = floor(random() * (25 - 5 + 1) + 5)::int,
+            restock_date = NOW() + interval '30 days'
+        WHERE product_id = $1
+    """, product_id)
+
+
+async def _delete_random_cart_item():
+    """Remove a random item from the shopping cart (excluding product 1)."""
+    try:
+        async with postgres_pool.acquire() as conn:
+            await conn.execute("""
+                DELETE FROM shopping_cart
+                WHERE ts IN (
+                    SELECT ts 
+                    FROM shopping_cart 
+                    WHERE product_id != 1
+                    ORDER BY RANDOM() 
+                    LIMIT 1
+                )
+            """)
+    except Exception as e:
+        logger.error(f"Error removing item from shopping cart: {str(e)}", exc_info=True)
+        raise
 
 
 async def update_inventory_levels():
@@ -326,59 +320,100 @@ async def continuous_query_load():
 async def collect_container_stats():
     """Collect Docker container CPU and memory stats every 5 seconds."""
     logger.info("Starting container stats collection...")
-    query_stats["postgres_stats"] = {
-        "cpu_measurements": [],
-        "memory_measurements": [],
-        "timestamps": [],
-        "current_stats": {"cpu_usage": 0.0, "memory_usage": 0.0, "last_updated": 0.0}
-    }
-    query_stats["materialize_stats"] = {
-        "cpu_measurements": [],
-        "memory_measurements": [],
-        "timestamps": [],
-        "current_stats": {"cpu_usage": 0.0, "memory_usage": 0.0, "last_updated": 0.0}
-    }
+    _initialize_container_stats()
+    
     while True:
         try:
             current_time = time.time()
             containers = {"postgres_stats": "postgres", "materialize_stats": "materialize"}
+            
             for stats_key, container_name in containers.items():
-                logger.debug(f"Collecting Docker stats for {container_name}...")
-                process = await asyncio.create_subprocess_exec(
-                    'docker', 'stats', container_name, '--no-stream', '--format', '{{.CPUPerc}}\t{{.MemPerc}}',
-                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-                )
-                returncode = await process.wait()
-                if returncode != 0:
-                    logger.error(f"Error getting Docker stats for {container_name}: {process.stderr.read()}")
-                else:
-                    stats_str = (await process.stdout.read()).decode("utf-8").strip().split('\t')
-                    if len(stats_str) == 2:
-                        cpu_str = stats_str[0].rstrip('%')
-                        mem_str = stats_str[1].rstrip('%')
-                        logger.debug(f"Raw stats from {container_name}: CPU={cpu_str}%, MEM={mem_str}%")
-                        try:
-                            cpu_usage = float(cpu_str)
-                            mem_usage = float(mem_str)
-                            async with stats_lock:
-                                stats = query_stats[stats_key]
-                                stats["cpu_measurements"].append(cpu_usage)
-                                stats["memory_measurements"].append(mem_usage)
-                                stats["timestamps"].append(current_time)
-                                if len(stats["timestamps"]) > 100:
-                                    stats["cpu_measurements"].pop(0)
-                                    stats["memory_measurements"].pop(0)
-                                    stats["timestamps"].pop(0)
-                                stats["current_stats"].update({
-                                    "cpu_usage": cpu_usage,
-                                    "memory_usage": mem_usage,
-                                    "last_updated": current_time
-                                })
-                                logger.debug(f"Updated {stats_key} stats: CPU={cpu_usage}%, MEM={mem_usage}%")
-                        except ValueError as e:
-                            logger.error(f"Error converting stats for {container_name}: {str(e)}")
-                    else:
-                        logger.error(f"Invalid stats format for {container_name}")
+                await _collect_single_container_stats(stats_key, container_name, current_time)
+                
         except Exception as e:
             logger.error(f"Error collecting container stats: {str(e)}")
+        
         await asyncio.sleep(5)
+
+
+def _initialize_container_stats():
+    """Initialize container stats storage structures."""
+    for container_type in ["postgres_stats", "materialize_stats"]:
+        query_stats[container_type] = {
+            "cpu_measurements": [],
+            "memory_measurements": [],
+            "timestamps": [],
+            "current_stats": {"cpu_usage": 0.0, "memory_usage": 0.0, "last_updated": 0.0}
+        }
+
+
+async def _collect_single_container_stats(stats_key: str, container_name: str, current_time: float):
+    """Collect stats for a single container."""
+    logger.debug(f"Collecting Docker stats for {container_name}...")
+    
+    try:
+        cpu_usage, mem_usage = await _get_docker_stats(container_name)
+        if cpu_usage is not None and mem_usage is not None:
+            await _update_container_stats(stats_key, cpu_usage, mem_usage, current_time)
+    except Exception as e:
+        logger.error(f"Error collecting stats for {container_name}: {str(e)}")
+
+
+async def _get_docker_stats(container_name: str) -> tuple:
+    """Get CPU and memory stats from Docker for a container."""
+    process = await asyncio.create_subprocess_exec(
+        'docker', 'stats', container_name, '--no-stream', '--format', '{{.CPUPerc}}\t{{.MemPerc}}',
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+    )
+    
+    returncode = await process.wait()
+    if returncode != 0:
+        stderr = await process.stderr.read()
+        logger.error(f"Error getting Docker stats for {container_name}: {stderr.decode()}")
+        return None, None
+    
+    stdout = await process.stdout.read()
+    stats_str = stdout.decode("utf-8").strip().split('\t')
+    
+    if len(stats_str) != 2:
+        logger.error(f"Invalid stats format for {container_name}")
+        return None, None
+    
+    try:
+        cpu_str = stats_str[0].rstrip('%')
+        mem_str = stats_str[1].rstrip('%')
+        cpu_usage = float(cpu_str)
+        mem_usage = float(mem_str)
+        
+        logger.debug(f"Raw stats from {container_name}: CPU={cpu_usage}%, MEM={mem_usage}%")
+        return cpu_usage, mem_usage
+        
+    except ValueError as e:
+        logger.error(f"Error converting stats for {container_name}: {str(e)}")
+        return None, None
+
+
+async def _update_container_stats(stats_key: str, cpu_usage: float, mem_usage: float, current_time: float):
+    """Update container statistics with new measurements."""
+    async with stats_lock:
+        stats = query_stats[stats_key]
+        
+        # Add new measurements
+        stats["cpu_measurements"].append(cpu_usage)
+        stats["memory_measurements"].append(mem_usage)
+        stats["timestamps"].append(current_time)
+        
+        # Limit history size
+        if len(stats["timestamps"]) > 100:
+            stats["cpu_measurements"].pop(0)
+            stats["memory_measurements"].pop(0)
+            stats["timestamps"].pop(0)
+        
+        # Update current stats
+        stats["current_stats"].update({
+            "cpu_usage": cpu_usage,
+            "memory_usage": mem_usage,
+            "last_updated": current_time
+        })
+        
+        logger.debug(f"Updated {stats_key} stats: CPU={cpu_usage}%, MEM={mem_usage}%")
