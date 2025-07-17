@@ -2,13 +2,14 @@
 import asyncio
 import asyncpg
 import logging
+from typing import Dict, Any
 from .pools import materialize_pool
 from .config import mz_schema, current_isolation_level
 
 logger = logging.getLogger(__name__)
 
 
-async def toggle_view_index():
+async def toggle_view_index() -> Dict[str, Any]:
     """Toggle the index on the dynamic pricing view."""
     try:
         async with materialize_pool.acquire() as conn:
@@ -24,7 +25,7 @@ async def toggle_view_index():
         raise Exception(f"Failed to toggle index: {str(e)}")
 
 
-async def get_view_index_status():
+async def get_view_index_status() -> bool:
     """Check if the dynamic pricing index exists."""
     async with materialize_pool.acquire() as conn:
         index_exists = await conn.fetchval("""
@@ -35,14 +36,14 @@ async def get_view_index_status():
         return index_exists or False
 
 
-async def get_isolation_level():
+async def get_isolation_level() -> str:
     """Get the current transaction isolation level."""
     async with materialize_pool.acquire() as conn:
         level = await conn.fetchval("SHOW transaction_isolation")
         return level.lower()
 
 
-async def toggle_isolation_level():
+async def toggle_isolation_level() -> Dict[str, str]:
     """Toggle between serializable and strict serializable isolation levels."""
     global current_isolation_level
     async with materialize_pool.acquire() as conn:
@@ -52,7 +53,7 @@ async def toggle_isolation_level():
         return {"status": "success", "isolation_level": new_level}
 
 
-async def check_materialize_index_exists():
+async def check_materialize_index_exists() -> bool:
     """Check if the Materialize index exists with retry logic."""
     max_retries = 3
     retry_delay = 1.0
@@ -77,7 +78,7 @@ async def check_materialize_index_exists():
     return False
 
 
-async def get_concurrency_limits():
+async def get_concurrency_limits() -> Dict[str, int]:
     """Get concurrency limits based on whether index exists."""
     has_index = await check_materialize_index_exists()
     return {

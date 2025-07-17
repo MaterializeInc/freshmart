@@ -5,7 +5,7 @@ import asyncpg
 import logging
 import datetime
 import random
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple, Any, List, Union
 from .pools import postgres_pool, materialize_pool
 from .config import source_to_stats, mz_schema
 from .stats import query_stats, stats_lock, calculate_qps
@@ -13,7 +13,7 @@ from .stats import query_stats, stats_lock, calculate_qps
 logger = logging.getLogger(__name__)
 
 
-async def measure_query_time(query: str, params: Tuple, is_materialize: bool, source: str) -> Tuple[float, Any]:
+async def measure_query_time(query: str, params: Tuple[Any, ...], is_materialize: bool, source: str) -> Tuple[float, Any]:
     """Measure the execution time of a database query."""
     start_time = time.time()
     try:
@@ -91,7 +91,7 @@ async def get_database_size() -> float:
         return size_gb
 
 
-async def toggle_promotion(product_id: int):
+async def toggle_promotion(product_id: int) -> Dict[str, Any]:
     """Toggle the promotion status for a product."""
     try:
         async with postgres_pool.acquire() as conn:
@@ -163,7 +163,7 @@ async def toggle_promotion(product_id: int):
         }
 
 
-async def get_categories():
+async def get_categories() -> List[Dict[str, Any]]:
     """Get all product categories from the database."""
     try:
         async with postgres_pool.acquire() as conn:
@@ -178,7 +178,7 @@ async def get_categories():
         raise
 
 
-async def add_product(product_name: str, category_id: int, price: float):
+async def add_product(product_name: str, category_id: int, price: float) -> Dict[str, Any]:
     """Add a new product to the database and to the shopping cart."""
     try:
         async with postgres_pool.acquire() as conn:
@@ -225,7 +225,7 @@ async def add_product(product_name: str, category_id: int, price: float):
         raise
 
 
-async def get_category_subtotals():
+async def get_category_subtotals() -> List[Dict[str, Any]]:
     """Get subtotals for each category in the shopping cart."""
     try:
         async with materialize_pool.acquire() as conn:

@@ -2,13 +2,14 @@
 import asyncio
 import asyncpg
 import logging
+from typing import Optional
 from .config import config, state
 
 logger = logging.getLogger(__name__)
 
 # Global pools (initialized once)
-postgres_pool = None
-materialize_pool = None
+postgres_pool: Optional[asyncpg.Pool] = None
+materialize_pool: Optional[asyncpg.Pool] = None
 
 
 class MaterializeConnection(asyncpg.Connection):
@@ -52,7 +53,7 @@ class MaterializeConnection(asyncpg.Connection):
             logger.error(f"Error during Materialize connection cleanup: {str(e)}")
             self._closed = True
 
-    async def close(self, *, timeout: float = None) -> None:
+    async def close(self, *, timeout: Optional[float] = None) -> None:
         """Override close to handle cleanup properly"""
         if self._closed:
             return
@@ -82,12 +83,12 @@ class MaterializeConnection(asyncpg.Connection):
         # Skip listener commands as they're not supported in Materialize
         pass
 
-    async def reset(self, *, timeout=None):
+    async def reset(self, *, timeout: Optional[float] = None) -> None:
         # Skip reset for Materialize connections
         pass
 
 
-async def new_postgres_pool():
+async def new_postgres_pool() -> asyncpg.Pool:
     """Create a new PostgreSQL connection pool."""
     return await asyncpg.create_pool(
         user=config.db_user,
@@ -106,7 +107,7 @@ async def new_postgres_pool():
     )
 
 
-async def new_materialize_pool():
+async def new_materialize_pool() -> asyncpg.Pool:
     """Create a new Materialize connection pool."""
     logger.info("Initializing Materialize pool...")
     return await asyncpg.create_pool(
@@ -128,7 +129,7 @@ async def new_materialize_pool():
     )
 
 
-async def refresh_materialize_pool():
+async def refresh_materialize_pool() -> None:
     """Safely refresh the Materialize connection pool with retries."""
     global materialize_pool
     max_retries = 3
@@ -185,7 +186,7 @@ async def refresh_materialize_pool():
                 # Don't raise the error - we want to keep trying in the next interval
 
 
-async def periodic_pool_refresh():
+async def periodic_pool_refresh() -> None:
     """Periodically refresh the Materialize connection pool."""
     while True:
         try:
@@ -197,7 +198,7 @@ async def periodic_pool_refresh():
             await asyncio.sleep(5)  # Brief pause on error before continuing
 
 
-async def init_pools():
+async def init_pools() -> None:
     """Initialize the global connection pools for PostgreSQL and Materialize."""
     global postgres_pool, materialize_pool
     postgres_pool = await new_postgres_pool()

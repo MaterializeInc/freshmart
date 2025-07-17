@@ -3,7 +3,7 @@ import time
 import asyncio
 import asyncpg
 import logging
-from typing import Dict
+from typing import Dict, Any
 from .pools import postgres_pool, materialize_pool
 from .config import mz_schema, current_isolation_level, traffic_enabled
 from .stats import query_stats, stats_lock, calculate_stats
@@ -11,7 +11,7 @@ from .stats import query_stats, stats_lock, calculate_stats
 logger = logging.getLogger(__name__)
 
 
-async def get_query_metrics(product_id: int) -> Dict:
+async def get_query_metrics(product_id: int) -> Dict[str, Any]:
     """Get comprehensive query metrics for all data sources."""
     current_time = time.time()
     response = {'timestamp': int(current_time * 1000), 'isolation_level': current_isolation_level}
@@ -114,7 +114,7 @@ async def get_query_metrics(product_id: int) -> Dict:
     return response
 
 
-async def get_container_stats():
+async def get_container_stats() -> Dict[str, Any]:
     """Return CPU and memory usage stats for PostgreSQL and Materialize."""
     current_time = time.time()
     response = {"timestamp": int(current_time * 1000)}
@@ -154,7 +154,7 @@ async def get_container_stats():
     return response
 
 
-async def get_traffic_state():
+async def get_traffic_state() -> Dict[str, bool]:
     """Return the current state of traffic toggles for all sources."""
     logger.debug("Getting traffic state")
     state = {
@@ -174,7 +174,7 @@ async def toggle_traffic(source: str) -> bool:
     return traffic_enabled[source]
 
 
-async def configure_refresh_interval(interval: int):
+async def configure_refresh_interval(interval: int) -> Dict[str, Any]:
     """Configure the refresh interval for materialized view."""
     global refresh_interval
     if interval < 1:
@@ -183,7 +183,7 @@ async def configure_refresh_interval(interval: int):
     return {"status": "success", "refresh_interval": interval}
 
 
-async def update_freshness_metrics():
+async def update_freshness_metrics() -> None:
     """Update freshness metrics for materialized view and Materialize."""
     while True:
         try:

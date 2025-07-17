@@ -2,13 +2,13 @@
 import time
 import asyncio
 import logging
-from typing import Dict, List
+from typing import Dict, List, Any
 from .config import config
 
 logger = logging.getLogger(__name__)
 
 # Query statistics storage
-query_stats = {
+query_stats: Dict[str, Dict[str, Any]] = {
     "view": {
         "counts": [],
         "timestamps": [],
@@ -86,7 +86,7 @@ def calculate_qps(source: str) -> float:
     return qps
 
 
-def calculate_stats(latencies: List[float]) -> Dict:
+def calculate_stats(latencies: List[float]) -> Dict[str, float]:
     """Calculate statistics (max, average, p99) from a list of latencies.
        Latencies are converted to milliseconds unless they are refresh durations."""
     if not latencies:
