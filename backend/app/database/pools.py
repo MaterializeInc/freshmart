@@ -1,9 +1,8 @@
 """Database connection pool management."""
-import os
 import asyncio
 import asyncpg
 import logging
-from .config import mz_schema
+from .config import config, state
 
 logger = logging.getLogger(__name__)
 
@@ -91,17 +90,18 @@ class MaterializeConnection(asyncpg.Connection):
 async def new_postgres_pool():
     """Create a new PostgreSQL connection pool."""
     return await asyncpg.create_pool(
-        user=os.getenv('DB_USER', 'postgres'),
-        password=os.getenv('DB_PASSWORD', 'postgres'),
-        database=os.getenv('DB_NAME', 'postgres'),
-        host=os.getenv('DB_HOST', 'localhost'),
-        command_timeout=120.0,
-        min_size=2,
-        max_size=20,
+        user=config.db_user,
+        password=config.db_password,
+        database=config.db_name,
+        host=config.db_host,
+        port=config.db_port,
+        command_timeout=config.command_timeout,
+        min_size=config.pool_min_size,
+        max_size=config.pool_max_size,
         server_settings={
             'application_name': 'freshmart_pg',
-            'statement_timeout': '120s',
-            'idle_in_transaction_session_timeout': '120s'
+            'statement_timeout': f'{int(config.command_timeout)}s',
+            'idle_in_transaction_session_timeout': f'{int(config.command_timeout)}s'
         }
     )
 
@@ -110,19 +110,19 @@ async def new_materialize_pool():
     """Create a new Materialize connection pool."""
     logger.info("Initializing Materialize pool...")
     return await asyncpg.create_pool(
-        user=os.getenv('MZ_USER', 'materialize'),
-        password=os.getenv('MZ_PASSWORD', 'materialize'),
-        database=os.getenv('MZ_NAME', 'materialize'),
-        host=os.getenv('MZ_HOST', 'localhost'),
-        port=int(os.getenv('MZ_PORT', '6875')),
-        command_timeout=120.0,
+        user=config.mz_user,
+        password=config.mz_password,
+        database=config.mz_name,
+        host=config.mz_host,
+        port=config.mz_port,
+        command_timeout=config.command_timeout,
         connection_class=MaterializeConnection,
-        min_size=2,
-        max_size=20,
+        min_size=config.pool_min_size,
+        max_size=config.pool_max_size,
         server_settings={
             'application_name': 'freshmart_mz',
-            'statement_timeout': '120s',
-            'idle_in_transaction_session_timeout': '120s',
+            'statement_timeout': f'{int(config.command_timeout)}s',
+            'idle_in_transaction_session_timeout': f'{int(config.command_timeout)}s',
             'statement_logging_sample_rate': '0'
         }
     )
@@ -189,7 +189,7 @@ async def periodic_pool_refresh():
     """Periodically refresh the Materialize connection pool."""
     while True:
         try:
-            await asyncio.sleep(60)  # Refresh every minute
+            await asyncio.sleep(config.pool_refresh_interval)
             await refresh_materialize_pool()
         except Exception as e:
             logger.error(f"Error in periodic pool refresh: {str(e)}")

@@ -3,7 +3,7 @@ import time
 import asyncio
 import logging
 from typing import Dict, List
-from .config import WINDOW_SIZE
+from .config import config
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ def calculate_qps(source: str) -> float:
     """Calculate queries per second for a given source."""
     stats = query_stats[source]
     current_time = time.time()
-    cutoff_time = current_time - WINDOW_SIZE
+    cutoff_time = current_time - config.window_size
     while stats["timestamps"] and stats["timestamps"][0] < cutoff_time:
         stats["counts"].pop(0)
         stats["timestamps"].pop(0)
@@ -78,9 +78,9 @@ def calculate_qps(source: str) -> float:
         return 0.0
     total_queries = sum(stats["counts"])
     if len(stats["timestamps"]) >= 2:
-        time_span = max(WINDOW_SIZE, stats["timestamps"][-1] - stats["timestamps"][0])
+        time_span = max(config.window_size, stats["timestamps"][-1] - stats["timestamps"][0])
     else:
-        time_span = WINDOW_SIZE
+        time_span = config.window_size
     qps = total_queries / time_span
     logger.debug(f"QPS calculation for {source}: {total_queries} queries in {time_span:.2f}s = {qps:.2f} QPS")
     return qps
