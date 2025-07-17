@@ -902,7 +902,7 @@ function App() {
                   <Stack spacing="xs">
                     <Stack spacing={0}>
                       <Text size="xl" weight={700} style={{ fontSize: '2rem', letterSpacing: '-0.02em', color: 'white', lineHeight: 1.2 }}>
-                        Real-time Data Integration and Transformation
+                        Live Data Layer for Apps and Agents 
                       </Text>
                     </Stack>
                     <Text size="lg" style={{ color: 'rgba(255, 255, 255, 0.9)', marginBottom: '0.5rem' }}>
