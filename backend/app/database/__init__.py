@@ -40,6 +40,18 @@ from .managers import (
     TrafficManager, DatabaseMetricsManager
 )
 
+# Import error handling
+from .exceptions import (
+    DatabaseError, ConnectionError, PoolExhaustionError, QueryTimeoutError,
+    TransactionError, ProductNotFoundError, PromotionError, IndexError,
+    MaterializeError, MetricsCollectionError, ConfigurationError,
+    RetryableError, TemporaryConnectionError, TemporaryQueryError
+)
+from .error_handling import (
+    handle_database_errors, retry_on_failure, ErrorContext, CircuitBreaker,
+    connection_circuit_breaker, query_circuit_breaker
+)
+
 # Re-export commonly used items
 __all__ = [
     # Pool management
@@ -78,5 +90,12 @@ __all__ = [
     
     # Managers
     'ProductManager', 'PromotionManager', 'MaterializeManager', 
-    'TrafficManager', 'DatabaseMetricsManager'
+    'TrafficManager', 'DatabaseMetricsManager',
+    
+    # Error handling
+    'DatabaseError', 'ConnectionError', 'PoolExhaustionError', 'QueryTimeoutError',
+    'TransactionError', 'ProductNotFoundError', 'PromotionError', 'IndexError',
+    'MaterializeError', 'MetricsCollectionError', 'ConfigurationError',
+    'RetryableError', 'TemporaryConnectionError', 'TemporaryQueryError',
+    'handle_database_errors', 'retry_on_failure', 'ErrorContext', 'CircuitBreaker'
 ]
