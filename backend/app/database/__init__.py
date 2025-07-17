@@ -26,6 +26,20 @@ from .config import (
     response_mapping, source_names
 )
 
+# Import new domain-specific classes
+from .models import (
+    QueryMetrics, ContainerStats, HeartbeatInfo, PromotionResult,
+    IndexStatus, IsolationLevelResult, TrafficState, RefreshIntervalResult,
+    StatsCalculator
+)
+from .collectors import (
+    QueryMetricsCollector, ContainerStatsCollector, RefreshMetricsCollector
+)
+from .managers import (
+    ProductManager, PromotionManager, MaterializeManager, 
+    TrafficManager, DatabaseMetricsManager
+)
+
 # Re-export commonly used items
 __all__ = [
     # Pool management
@@ -52,5 +66,17 @@ __all__ = [
     # Configuration
     'latest_heartbeat', 'current_isolation_level', 'refresh_interval',
     'mz_schema', 'active_tasks', 'traffic_enabled', 'source_to_stats',
-    'response_mapping', 'source_names'
+    'response_mapping', 'source_names',
+    
+    # Domain models
+    'QueryMetrics', 'ContainerStats', 'HeartbeatInfo', 'PromotionResult',
+    'IndexStatus', 'IsolationLevelResult', 'TrafficState', 'RefreshIntervalResult',
+    'StatsCalculator',
+    
+    # Collectors
+    'QueryMetricsCollector', 'ContainerStatsCollector', 'RefreshMetricsCollector',
+    
+    # Managers
+    'ProductManager', 'PromotionManager', 'MaterializeManager', 
+    'TrafficManager', 'DatabaseMetricsManager'
 ]
