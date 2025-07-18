@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 from pydantic import BaseModel
-from typing import Optional
 
 from . import database
 import logging
