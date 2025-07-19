@@ -2,6 +2,9 @@ FROM python:3.12.8
 
 WORKDIR /usr/src/app
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
 # Install Docker CLI
 RUN apt-get update && \
     apt-get install -y \
@@ -18,7 +21,11 @@ RUN apt-get update && \
     apt-get install -y docker-ce-cli && \
     rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy project files
+COPY pyproject.toml uv.lock ./
+COPY app/ ./app/
 
-CMD uvicorn app.main:app --reload --host 0.0.0.0
+# Install dependencies using uv
+RUN uv sync --frozen --no-cache
+
+CMD uv run uvicorn app.main:app --reload --host 0.0.0.0

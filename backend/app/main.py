@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 from pydantic import BaseModel
-from typing import Optional
 
 from . import database
 import logging
@@ -48,14 +47,17 @@ async def startup_event():
     asyncio.create_task(database.update_inventory_levels())
 
     logger.info(
-        "Started background tasks: heartbeat, materialized view auto-refresh, continuous query load, shopping cart, inventory updates, and container stats collection")
+        "Started background tasks: heartbeat, materialized view auto-refresh, continuous query load, shopping cart, inventory updates, and container stats collection"
+    )
 
 
 @app.post("/configure-refresh-interval/{interval}")
 async def configure_refresh_interval(interval: int):
     global refresh_task
     if interval < 1:
-        raise HTTPException(status_code=400, detail="Interval must be at least 1 second")
+        raise HTTPException(
+            status_code=400, detail="Interval must be at least 1 second"
+        )
 
     # Update the global refresh interval in the database module
     await database.configure_refresh_interval(interval)
@@ -80,22 +82,16 @@ async def get_metrics(product_id: int):
         return metrics
     except asyncio.TimeoutError:
         logger.error("Metrics request timed out")
-        raise HTTPException(
-            status_code=504,
-            detail="Request timed out"
-        )
+        raise HTTPException(status_code=504, detail="Request timed out")
     except asyncio.CancelledError:
         logger.error("Metrics request was cancelled")
         raise HTTPException(
             status_code=499,  # Client Closed Request
-            detail="Request was cancelled"
+            detail="Request was cancelled",
         )
     except Exception as e:
         logger.error(f"Error getting metrics: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/refresh")
@@ -142,26 +138,17 @@ async def get_database_size_endpoint():
         return {"size_gb": size}
     except Exception as e:
         logger.error(f"Error getting database size: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to get database size"
-        )
+        raise HTTPException(status_code=500, detail="Failed to get database size")
 
 
 @app.get("/current-refresh-interval")
 async def get_current_refresh_interval():
     """Get the current refresh interval for the materialized view"""
     try:
-        return {
-            "status": "success",
-            "refresh_interval": database.refresh_interval
-        }
+        return {"status": "success", "refresh_interval": database.refresh_interval}
     except Exception as e:
         logger.error(f"Error getting refresh interval: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to get refresh interval"
-        )
+        raise HTTPException(status_code=500, detail="Failed to get refresh interval")
 
 
 # Add traffic-related endpoints
@@ -222,10 +209,7 @@ async def get_database_size_endpoint():
 async def get_current_refresh_interval():
     """Get the current refresh interval for the materialized view"""
     try:
-        return {
-            "status": "success",
-            "refresh_interval": database.refresh_interval
-        }
+        return {"status": "success", "refresh_interval": database.refresh_interval}
     except Exception as e:
         logger.error(f"Error getting refresh interval: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -236,7 +220,10 @@ async def configure_refresh_interval(interval: int):
     """Configure the refresh interval for the materialized view"""
     try:
         await database.configure_refresh_interval(interval)
-        return {"status": "success", "message": f"Refresh interval set to {interval} seconds"}
+        return {
+            "status": "success",
+            "message": f"Refresh interval set to {interval} seconds",
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -257,19 +244,28 @@ async def get_shopping_cart(expanded=Query(None)):
                 """)
 
                 # Calculate cart total with exact precision
-                cart_total = await conn.fetchval("""
+                cart_total = (
+                    await conn.fetchval("""
                     WITH raw_total AS (
                         SELECT SUM(price)::numeric(20,10) as total
                         FROM dynamic_price_shopping_cart
                     )
                     SELECT ROUND(total, 2)
                     FROM raw_total
-                """) or 0
+                """)
+                    or 0
+                )
 
                 # Get category subtotals with exact precision
                 clause = ""
                 if expanded:
-                    expanded_ids = ",".join([token.strip() for token in expanded.split(",") if token.strip().isdigit()])
+                    expanded_ids = ",".join(
+                        [
+                            token.strip()
+                            for token in expanded.split(",")
+                            if token.strip().isdigit()
+                        ]
+                    )
                     clause = f"OR parent_id IN ({expanded_ids})"
 
                 subtotals = await conn.fetch(f"""
@@ -312,13 +308,15 @@ async def get_shopping_cart(expanded=Query(None)):
                 """)
 
                 # Extract the final values
-                categories_total = float(subtotals[0]["categories_total"]) if subtotals else 0
+                categories_total = (
+                    float(subtotals[0]["categories_total"]) if subtotals else 0
+                )
 
                 response_data = {
                     "cart_items": [dict(row) for row in cart_items],
                     "category_subtotals": [dict(row) for row in subtotals],
                     "cart_total": cart_total,
-                    "categories_total": categories_total
+                    "categories_total": categories_total,
                 }
                 return response_data
         except Exception as e:
@@ -331,7 +329,7 @@ async def get_category_subtotals():
     """This endpoint is deprecated. Use /api/shopping-cart instead."""
     raise HTTPException(
         status_code=301,
-        detail="This endpoint is deprecated. Use /api/shopping-cart instead."
+        detail="This endpoint is deprecated. Use /api/shopping-cart instead.",
     )
 
 
@@ -361,10 +359,7 @@ async def get_categories():
         return categories
     except Exception as e:
         logger.error(f"Error getting categories: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to get categories"
-        )
+        raise HTTPException(status_code=500, detail="Failed to get categories")
 
 
 @app.post("/api/products")
@@ -372,24 +367,19 @@ async def add_product(product: ProductCreate):
     """Add a new product to the database"""
     try:
         new_product = await database.add_product(
-            product.product_name,
-            product.category_id,
-            product.price
+            product.product_name, product.category_id, product.price
         )
         return new_product
     except Exception as e:
         logger.error(f"Error adding product: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to add product"
-        )
+        raise HTTPException(status_code=500, detail="Failed to add product")
 
 
 @app.get("/api/demo")
 async def get_demo_mode():
     async with database.postgres_pool.acquire() as conn:
         mode = await conn.fetchval("SELECT mode FROM demo")
-        return {'mode': mode}
+        return {"mode": mode}
 
 
 if __name__ == "__main__":
