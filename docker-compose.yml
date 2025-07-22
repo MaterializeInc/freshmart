@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:latest
@@ -100,6 +98,7 @@ services:
   materialize:
     image: materialize/materialized:latest
     container_name: materialize
+    command: --system-parameter-default=pg_offset_known_interval=100ms
     depends_on:
       postgres_init:
         condition: service_completed_successfully
@@ -202,3 +201,4 @@ services:
 volumes:
   postgres_data:
     driver: local
+
