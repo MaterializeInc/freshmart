@@ -15,8 +15,8 @@ You are a helpful customer service bot for freshmart.
 Freshmart offers loyalty tiers and Gold status is achieved after spending $1000 in a calendar year.
 """
 
-class FreshmartAgent(abc.ABC):
 
+class FreshmartAgent(abc.ABC):
     @classmethod
     def load_agent(cls):
         logger.info("Loading agent...")
@@ -29,35 +29,33 @@ class FreshmartAgent(abc.ABC):
             return RealAgent(api_key)
 
     @abc.abstractmethod
-    def just_rag(self):
-        ...
+    def just_rag(self): ...
 
     @abc.abstractmethod
-    def with_tools(self):
-        ...
+    def with_tools(self): ...
 
 
 class RealAgent(FreshmartAgent):
-
     def __init__(self, api_key):
         logger.info("Initializing RealAgent...")
         self.model = OpenAIModel(
             client_args={
                 "api_key": api_key,
             },
-            model_id="gpt-4o"
+            model_id="gpt-4o",
         )
         logger.info("OpenAI model initialized")
 
         logger.info("Connecting to MCP server...")
-        materialize = MCPClient(lambda: streamablehttp_client("http://mcp-materialize-server:8001/mcp"))
+        materialize = MCPClient(
+            lambda: streamablehttp_client("http://mcp-materialize-server:8001/mcp")
+        )
         materialize.__enter__()
         logger.info("MCP client connected")
-        
+
         logger.info("Loading tools...")
         self.tools = materialize.list_tools_sync()
         logger.info(f"Loaded {len(self.tools)} tools")
-
 
     def just_rag(self):
         logger.info("Running just_rag method...")
@@ -66,7 +64,7 @@ class RealAgent(FreshmartAgent):
             system_prompt=system_prompt,
         )
         response = agent("You are helping customer 1. When will I reach gold status?")
-        return response.message['content'][0]['text']
+        return response.message["content"][0]["text"]
 
     def with_tools(self):
         logger.info("Running with_tools method...")
@@ -76,7 +74,7 @@ class RealAgent(FreshmartAgent):
             system_prompt=system_prompt,
         )
         response = agent("You are helping customer 1. When will I reach gold status?")
-        return response.message['content'][0]['text']
+        return response.message["content"][0]["text"]
 
 
 class MockAgent(FreshmartAgent):

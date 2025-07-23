@@ -3,17 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 from pydantic import BaseModel
 
+from . import agent
 from . import database
 import logging
-
-# Try to import agent, but handle the case where MCP is not available
-try:
-    from . import agent
-    AGENT_AVAILABLE = True
-except ImportError as e:
-    logger = logging.getLogger(__name__)
-    logger.warning(f"Agent module not available: {e}")
-    AGENT_AVAILABLE = False
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -390,22 +382,16 @@ async def add_product(product: ProductCreate):
 
 @app.post("/api/agent")
 async def agent_endpoint(request: AgentRequest):
-    if not AGENT_AVAILABLE:
-        raise HTTPException(
-            status_code=503, 
-            detail="Agent service is not available. MCP dependencies may not be installed."
-        )
-    
     try:
         logger.info(f"Agent endpoint called with use_tools={request.use_tools}")
-        
+
         freshmart_agent = agent.FreshmartAgent.load_agent()
-        
+
         if request.use_tools:
             response = freshmart_agent.with_tools()
         else:
             response = freshmart_agent.just_rag()
-        
+
         return {"response": response}
     except Exception as e:
         logger.error(f"Error in agent endpoint: {str(e)}", exc_info=True)
