@@ -55,7 +55,6 @@ query_stats = {
         "timestamps": [],
         "latencies": [],
         "end_to_end_latencies": [],
-        "first_measurement_discarded": False,
         "current_stats": {
             "qps": 0.0,
             "latency": 0.0,
@@ -70,7 +69,6 @@ query_stats = {
         "latencies": [],
         "end_to_end_latencies": [],
         "refresh_durations": [],
-        "first_measurement_discarded": False,
         "current_stats": {
             "qps": 0.0,
             "latency": 0.0,
@@ -86,7 +84,6 @@ query_stats = {
         "timestamps": [],
         "latencies": [],
         "end_to_end_latencies": [],
-        "first_measurement_discarded": False,
         "current_stats": {
             "qps": 0.0,
             "latency": 0.0,
@@ -279,6 +276,21 @@ async def init_pools():
     global postgres_pool, materialize_pool
     postgres_pool = await new_postgres_pool()
     materialize_pool = await new_materialize_pool()
+
+    # Wait for Materialize to be fully hydrated before proceeding
+    logger.info("Waiting for Materialize to be fully hydrated...")
+    while True:
+        try:
+            is_hydrated = await check_materialize_hydration_status()
+            if is_hydrated:
+                logger.info("Materialize is fully hydrated, proceeding with startup")
+                break
+            else:
+                logger.info("Materialize not fully hydrated yet, waiting 5 seconds...")
+                await asyncio.sleep(5)
+        except Exception as e:
+            logger.info(f"Hydration check failed, retrying in 5 seconds: {str(e)}")
+            await asyncio.sleep(5)
 
     # Start the periodic pool refresh task
     asyncio.create_task(periodic_pool_refresh())
@@ -555,14 +567,6 @@ async def measure_query_time(
         stats = query_stats[stats_key]
         current_time = time.time()
         async with stats_lock:
-            # Discard the very first measurement against each pricing view
-            if not stats["first_measurement_discarded"]:
-                stats["first_measurement_discarded"] = True
-                logger.debug(
-                    f"Discarding first measurement for {source}: {duration:.3f}s"
-                )
-                return duration, result
-
             stats["counts"].append(1)
             stats["timestamps"].append(current_time)
             stats["latencies"].append(duration)
@@ -877,6 +881,21 @@ async def toggle_isolation_level():
         await conn.execute(f"SET TRANSACTION_ISOLATION TO '{new_level}'")
         current_isolation_level = new_level
         return {"status": "success", "isolation_level": new_level}
+
+
+async def check_materialize_hydration_status():
+    """Check if Materialize is fully hydrated before starting measurements."""
+    try:
+        async with materialize_pool.acquire() as conn:
+            result = await conn.fetchval("""
+                SELECT bool_and(hydrated) 
+                FROM mz_internal.mz_hydration_statuses 
+                WHERE object_id LIKE 'u%'
+            """)
+            return result or False
+    except Exception as e:
+        logger.debug(f"Hydration check not ready yet: {str(e)}")
+        return False
 
 
 async def check_materialize_index_exists():
