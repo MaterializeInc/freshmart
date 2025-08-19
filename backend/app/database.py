@@ -55,6 +55,7 @@ query_stats = {
         "timestamps": [],
         "latencies": [],
         "end_to_end_latencies": [],
+        "first_measurement_discarded": False,
         "current_stats": {
             "qps": 0.0,
             "latency": 0.0,
@@ -69,6 +70,7 @@ query_stats = {
         "latencies": [],
         "end_to_end_latencies": [],
         "refresh_durations": [],
+        "first_measurement_discarded": False,
         "current_stats": {
             "qps": 0.0,
             "latency": 0.0,
@@ -84,6 +86,7 @@ query_stats = {
         "timestamps": [],
         "latencies": [],
         "end_to_end_latencies": [],
+        "first_measurement_discarded": False,
         "current_stats": {
             "qps": 0.0,
             "latency": 0.0,
@@ -552,6 +555,14 @@ async def measure_query_time(
         stats = query_stats[stats_key]
         current_time = time.time()
         async with stats_lock:
+            # Discard the very first measurement against each pricing view
+            if not stats["first_measurement_discarded"]:
+                stats["first_measurement_discarded"] = True
+                logger.debug(
+                    f"Discarding first measurement for {source}: {duration:.3f}s"
+                )
+                return duration, result
+
             stats["counts"].append(1)
             stats["timestamps"].append(current_time)
             stats["latencies"].append(duration)
