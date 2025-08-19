@@ -1381,7 +1381,7 @@ function App() {
                             <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.view.max.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.view.avg.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.view.p99.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{currentMetric.view_qps?.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) || '0.0'}</td>
+                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{currentMetric.view_qps?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) || '0'}</td>
                           </tr>
                         )}
                         {scenarios.materializeView && (
@@ -1390,7 +1390,7 @@ function App() {
                             <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.materializeView.max.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.materializeView.avg.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.materializeView.p99.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{currentMetric.materialized_view_qps?.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) || '0.0'}</td>
+                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{currentMetric.materialized_view_qps?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) || '0'}</td>
                           </tr>
                         )}
                         {scenarios.materialize && (
@@ -1399,7 +1399,7 @@ function App() {
                             <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.materialize.max.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.materialize.avg.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.materialize.p99.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{currentMetric.materialize_qps?.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) || '0.0'}</td>
+                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{currentMetric.materialize_qps?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) || '0'}</td>
                           </tr>
                         )}
                       </tbody>
