@@ -14,6 +14,22 @@ import StatusBanner from "./components/StatusBanner";
 import { useTranslation } from "react-i18next";
 import i18n from './i18n'
 
+// Utility function to calculate median from a collection of numbers
+function calculateMedian(numbers) {
+  if (!numbers || numbers.length === 0) return 0;
+  
+  const sorted = [...numbers].sort((a, b) => a - b);
+  const length = sorted.length;
+  
+  if (length % 2 === 0) {
+    // Even number of values - return average of middle two
+    return (sorted[Math.floor(length / 2) - 1] + sorted[Math.floor(length / 2)]) / 2;
+  } else {
+    // Odd number of values - return middle value
+    return sorted[Math.floor(length / 2)];
+  }
+}
+
 const HISTORY_WINDOW_MS = 3 * 60 * 1000; // 3 minutes in milliseconds
 const API_URL = 'http://localhost:8000'; // FastAPI backend URL
 
@@ -1368,38 +1384,38 @@ function App() {
                       <thead>
                         <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
                           <th style={{ textAlign: 'left', padding: '8px', color: '#BCB9C0' }}>Source</th>
-                          <th style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>Query Latency Max</th>
-                          <th style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>Query Latency Avg</th>
-                          <th style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>Query Latency P99</th>
                           <th style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>QPS</th>
+                          <th style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>Query Latency Median</th>
+                          <th style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>Query Latency P99</th>
+                          <th style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>Query Latency Max</th>
                         </tr>
                       </thead>
                       <tbody>
                         {scenarios.postgres && (
                           <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
                             <td style={{ padding: '8px', color: '#BCB9C0' }}>PostgreSQL View</td>
-                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{(metrics.length > 0 ? Math.max(...metrics.filter(m => m.view_latency != null).map(m => m.view_latency)) : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.view.avg.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.view.p99.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{currentMetric.view_qps?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) || '0'}</td>
+                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{calculateMedian(metrics.filter(m => m.view_latency != null).map(m => m.view_latency)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.view.p99.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{(metrics.length > 0 ? Math.max(...metrics.filter(m => m.view_latency != null).map(m => m.view_latency)) : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                           </tr>
                         )}
                         {scenarios.materializeView && (
                           <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
                             <td style={{ padding: '8px', color: '#BCB9C0' }}>Batch (Cache) Table</td>
-                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{(metrics.length > 0 ? Math.max(...metrics.filter(m => m.materialized_view_latency != null).map(m => m.materialized_view_latency)) : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.materializeView.avg.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.materializeView.p99.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{currentMetric.materialized_view_qps?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) || '0'}</td>
+                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{calculateMedian(metrics.filter(m => m.materialized_view_latency != null).map(m => m.materialized_view_latency)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.materializeView.p99.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{(metrics.length > 0 ? Math.max(...metrics.filter(m => m.materialized_view_latency != null).map(m => m.materialized_view_latency)) : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                           </tr>
                         )}
                         {scenarios.materialize && (
                           <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
                             <td style={{ padding: '8px', color: '#BCB9C0' }}>Materialize</td>
-                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{(metrics.length > 0 ? Math.max(...metrics.filter(m => m.materialize_latency != null).map(m => m.materialize_latency)) : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.materialize.avg.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.materialize.p99.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{currentMetric.materialize_qps?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) || '0'}</td>
+                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{calculateMedian(metrics.filter(m => m.materialize_latency != null).map(m => m.materialize_latency)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{stats.materialize.p99.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td style={{ textAlign: 'right', padding: '8px', color: '#BCB9C0' }}>{(metrics.length > 0 ? Math.max(...metrics.filter(m => m.materialize_latency != null).map(m => m.materialize_latency)) : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                           </tr>
                         )}
                       </tbody>
