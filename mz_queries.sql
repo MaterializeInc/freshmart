@@ -280,3 +280,24 @@ CREATE DEFAULT INDEX IF NOT EXISTS category_totals_category_id_idx ON category_t
 
 CREATE INDEX IF NOT EXISTS category_totals_parent_id_idx ON category_totals (parent_id);
 CREATE INDEX IF NOT EXISTS heartbeats_idx ON heartbeats (id DESC);
+
+CREATE TABLE customer_spend_year_to_date (customer_id bigint, spend bigint);
+CREATE INDEX on customer_spend_year_to_date (customer_id);
+COMMENT ON TABLE customer_spend_year_to_date IS 'Shows each customers spend year to date';
+COMMENT ON COLUMN customer_spend_year_to_date.customer_id IS 'A customers unique id';
+COMMENT ON COLUMN customer_spend_year_to_date.spend IS 'A customers total spend year to date';
+INSERT INTO customer_spend_year_to_date VALUES (1, 998);
+
+CREATE VIEW shopping_cart_value AS
+WITH raw_total AS (
+  SELECT SUM(price)::numeric(20,10) as total
+  FROM dynamic_price_shopping_cart
+)
+SELECT 1 AS customer_id, ROUND(total, 2) AS value
+FROM raw_total;
+
+COMMENT ON VIEW shopping_cart_value IS 'Shows the total value of the shopping cart for a customer';
+COMMENT ON COLUMN shopping_cart_value.customer_id IS 'A customers unique id';
+COMMENT ON COLUMN shopping_cart_value.spend IS 'The total value of the shopping cart for a customer';
+
+CREATE INDEX ON shopping_cart_value (customer_id);
