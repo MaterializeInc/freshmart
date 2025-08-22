@@ -338,7 +338,7 @@ async def refresh_materialized_view():
                 SET LOCAL idle_in_transaction_session_timeout = '120s';
             """)
             await conn.execute(
-                "REFRESH MATERIALIZED VIEW mv_dynamic_pricing", timeout=120.0
+                "REFRESH MATERIALIZED VIEW mv_inventory_item", timeout=120.0
             )
             refresh_duration = time.time() - start_time
             logger.debug(
@@ -347,7 +347,7 @@ async def refresh_materialized_view():
             await conn.execute(
                 """
                 INSERT INTO materialized_view_refresh_log (view_name, last_refresh, refresh_duration)
-                VALUES ('mv_dynamic_pricing', NOW(), $1)
+                VALUES ('mv_inventory_item', NOW(), $1)
                 ON CONFLICT (view_name)
                 DO UPDATE SET last_refresh = EXCLUDED.last_refresh, refresh_duration = EXCLUDED.refresh_duration
             """,
@@ -599,7 +599,18 @@ async def measure_query_time(
                     stats["latencies"].pop(0)
             if len(stats["latencies"]) > 100:
                 stats["latencies"].pop(0)
-            stats["current_stats"]["qps"] = calculate_qps(stats_key)
+            # Calculate new QPS
+            new_qps = calculate_qps(stats_key)
+
+            # For materialized_view only: preserve last known value if it would be 0
+            if stats_key == "materialized_view":
+                if new_qps > 0 or stats["current_stats"]["qps"] == 0:
+                    # Only update if we have a non-zero value, or if we don't have a previous value
+                    stats["current_stats"]["qps"] = new_qps
+                # If new_qps is 0 and we have a previous non-zero value, keep the previous value
+            else:
+                # For other sources, always update the QPS
+                stats["current_stats"]["qps"] = new_qps
             stats["current_stats"]["latency"] = duration * 1000
             if (
                 result
@@ -651,7 +662,7 @@ async def get_query_metrics(product_id: int) -> Dict:
                 SELECT EXTRACT(EPOCH FROM (NOW() - last_refresh)) as age,
                        refresh_duration
                 FROM materialized_view_refresh_log
-                WHERE view_name = 'mv_dynamic_pricing'
+                WHERE view_name = 'mv_inventory_item'
             """)
             pg_heartbeat = await pg_conn.fetchrow("""
                 SELECT id, ts, NOW() as current_ts
@@ -852,12 +863,12 @@ async def toggle_view_index():
         async with materialize_pool.acquire() as conn:
             if await check_materialize_index_exists():
                 await conn.execute(
-                    f"DROP INDEX {mz_schema}.dynamic_pricing_product_id_idx"
+                    f"DROP INDEX {mz_schema}.inventory_item_product_id_idx"
                 )
                 return {"message": "Index dropped successfully", "index_exists": False}
             else:
                 await conn.execute(
-                    f"CREATE INDEX dynamic_pricing_product_id_idx ON {mz_schema}.dynamic_pricing (product_id)"
+                    f"CREATE INDEX inventory_item_product_id_idx ON {mz_schema}.inventory_item (product_id)"
                 )
                 return {"message": "Index created successfully", "index_exists": True}
     except Exception as e:
@@ -870,7 +881,7 @@ async def get_view_index_status():
         index_exists = await conn.fetchval("""
             SELECT TRUE 
             FROM mz_catalog.mz_indexes
-            WHERE name = 'dynamic_pricing_product_id_idx'
+            WHERE name = 'inventory_item_product_id_idx'
         """)
         return index_exists or False
 
@@ -918,7 +929,7 @@ async def check_materialize_index_exists():
                 result = await conn.fetchval("""
                     SELECT TRUE 
                     FROM mz_catalog.mz_indexes
-                    WHERE name = 'dynamic_pricing_product_id_idx'
+                    WHERE name = 'inventory_item_product_id_idx'
                 """)
                 return result or False
         except asyncpg.exceptions.ConnectionDoesNotExistError:
@@ -975,18 +986,18 @@ async def continuous_query_load():
     product_id = 1
     QUERIES = {
         "view": """
-            SELECT product_id, adjusted_price, last_update_time
-            FROM dynamic_pricing 
+            SELECT product_id, live_price AS adjusted_price, last_update_time
+            FROM inventory_item 
             WHERE product_id = $1
         """,
         "materialized_view": """
-            SELECT product_id, adjusted_price, last_update_time
-            FROM mv_dynamic_pricing 
+            SELECT product_id, live_price AS adjusted_price, last_update_time
+            FROM mv_inventory_item 
             WHERE product_id = $1
         """,
         "materialize": f"""
-            SELECT product_id, adjusted_price, last_update_time
-            FROM {mz_schema}.dynamic_pricing 
+            SELECT product_id, live_price AS adjusted_price, last_update_time
+            FROM {mz_schema}.inventory_item 
             WHERE product_id = $1
         """,
     }
@@ -1040,7 +1051,7 @@ async def update_freshness_metrics():
                                EXTRACT(EPOCH FROM (NOW() - last_refresh)) as age,
                                NOW() as current_ts
                         FROM materialized_view_refresh_log
-                        WHERE view_name = 'mv_dynamic_pricing'
+                        WHERE view_name = 'mv_inventory_item'
                     """)
                     if mv_stats:
                         async with stats_lock:

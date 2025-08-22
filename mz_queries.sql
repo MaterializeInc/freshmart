@@ -54,7 +54,7 @@ COMMENT ON COLUMN shopping_cart.category_id IS 'Identifier for the products cate
 COMMENT ON COLUMN shopping_cart.price IS 'Quoted unit price at time of addition to cart. May be superseded by dynamic pricing during checkout.';
 COMMENT ON COLUMN shopping_cart.ts IS 'Timestamp when the item was added to the cart. Supports cart lifecycle tracking and abandonment analysis.';
 
-CREATE VIEW IF NOT EXISTS dynamic_pricing AS
+CREATE VIEW inventory_item AS
 WITH recent_prices AS (
     SELECT grp.product_id, AVG(price) AS avg_price
     FROM (SELECT DISTINCT product_id FROM sales) grp, 
@@ -107,7 +107,7 @@ high_demand_products AS (
     HAVING COUNT(s.sale_id) > (SELECT AVG(total_sales) FROM (SELECT COUNT(*) AS total_sales FROM sales GROUP BY product_id) subquery)
 ),
 
-dynamic_pricing AS (
+item_enriched AS (
     SELECT 
         p.product_id,
         p.base_price,
@@ -140,23 +140,40 @@ dynamic_pricing AS (
     LEFT JOIN high_demand_products hd ON p.product_id = hd.product_id
 )
 SELECT 
-    dp.product_id,
-    dp.base_price * dp.popularity_adjustment * dp.promotion_discount * dp.stock_adjustment * dp.demand_multiplier * dp.additional_discount AS adjusted_price,
+    ie.product_id,
+    ie.base_price * ie.popularity_adjustment * ie.promotion_discount * ie.stock_adjustment * ie.demand_multiplier * ie.additional_discount AS live_price,
     p.last_update_time
-FROM dynamic_pricing dp
-JOIN products p ON dp.product_id = p.product_id;
+FROM item_enriched ie
+JOIN products p ON ie.product_id = p.product_id;
 
-COMMENT ON VIEW dynamic_pricing IS 'Dynamic pricing engine that calculates real-time, optimized pricing for products based on market conditions, demand patterns, inventory levels, and promotional strategies. Automatically adjusts pricing to maximize revenue while maintaining competitive positioning and reflects current market dynamics to support pricing decisioning across commerce operations.';
-COMMENT ON COLUMN dynamic_pricing.product_id IS 'Foreign key reference to the products table. Links each dynamic pricing calculation to its specific product entity, enabling price lookups and pricing rule applications across commerce systems.';
-COMMENT ON COLUMN dynamic_pricing.adjusted_price IS 'Algorithmically calculated optimized price that incorporates multiple business factors including popularity ranking, active promotions, inventory levels, historical demand patterns, and product characteristics. Represents the recommended selling price for operational use in commerce systems and pricing displays.';
-COMMENT ON COLUMN dynamic_pricing.last_update_time IS 'Timestamp indicating when the underlying product data was last modified. Enables pricing systems to validate price freshness and implement price staleness controls to ensure pricing accuracy in customer-facing applications.';
+-- Contextual comments
+COMMENT ON VIEW inventory_item IS 
+'This view is the canonical representation of an inventory item. 
+It provides a unified way to reference a product in the system, 
+with its core identity (product_id), its current operational price (live_price), 
+and the last time the underlying product record was updated (last_update_time). 
+Think of this as the "single source of truth" for inventory items within the business context.';
+
+COMMENT ON COLUMN inventory_item.product_id IS 
+'The unique identifier for the inventory item. 
+This connects directly to the products table and allows other systems or queries to join consistently on a stable ID.';
+
+COMMENT ON COLUMN inventory_item.live_price IS 
+'The current selling price of the inventory item. 
+It is not a fixed value in the products table but a property that reflects present business conditions. 
+When another system or dashboard asks, "What is the price of this item right now?" — this is the field to use.';
+
+COMMENT ON COLUMN inventory_item.last_update_time IS 
+'The timestamp of the most recent update to the product record. 
+This tells you how fresh the information is. 
+If you are checking for stale data or debugging why a price looks off, this column is a good reference point.';
 
 CREATE VIEW dynamic_price_shopping_cart AS SELECT 
   sc.product_id,  
   sc.product_name,
   c.category_id,
   c.category_name,
-  dp.adjusted_price AS price,
+  ii.live_price AS price,
   COALESCE(SUM(i.stock), 0) as available_stock
 FROM 
     shopping_cart sc
@@ -165,7 +182,7 @@ JOIN
 JOIN 
     categories c ON p.category_id = c.category_id
 JOIN 
-    dynamic_pricing dp ON p.product_id = dp.product_id
+    inventory_item ii ON p.product_id = ii.product_id
 LEFT JOIN
     inventory i ON p.product_id = i.product_id
 GROUP BY
@@ -173,7 +190,7 @@ GROUP BY
     sc.product_name,
     c.category_id,
     c.category_name,
-    dp.adjusted_price;
+    ii.live_price;
 
 COMMENT ON VIEW dynamic_price_shopping_cart IS 'Complete marketplace view of products in shopping carts with real-time pricing and availability. Consolidates live cart contents with optimized pricing and inventory levels to support checkout processes, pricing decisions, and fulfillment readiness. Provides the definitive state of cart items with current market pricing for commerce operations.';
 COMMENT ON COLUMN dynamic_price_shopping_cart.product_id IS 'Unique identifier for products currently in customer shopping carts. Links cart items to their master product records for pricing calculations and inventory availability checks.';
@@ -273,7 +290,7 @@ COMMENT ON COLUMN category_totals.category_name IS 'Display name for the categor
 COMMENT ON COLUMN category_totals.total IS 'Total monetary value of all items within this category including rolled-up values from subcategories. Represents the complete financial performance of the category hierarchy for revenue analysis and category profitability assessment.';
 COMMENT ON COLUMN category_totals.item_count IS 'Total count of individual items within this category including items from subcategories. Provides inventory depth metrics for category management and merchandise planning decisions.';
 
-CREATE INDEX IF NOT EXISTS dynamic_pricing_product_id_idx ON dynamic_pricing (product_id);
+CREATE INDEX IF NOT EXISTS inventory_item_product_id_idx ON inventory_item (product_id);
 
 CREATE DEFAULT INDEX IF NOT EXISTS dynamic_price_shopping_cart_idx ON dynamic_price_shopping_cart;
 CREATE DEFAULT INDEX IF NOT EXISTS category_totals_category_id_idx ON category_totals;

@@ -220,7 +220,7 @@ setup_materialize() {
     # Create a temporary file for Materialize setup
     cat > mz_setup.sql << EOF
     -- Drop existing objects if they exist
-    DROP VIEW IF EXISTS dynamic_pricing CASCADE;
+    DROP VIEW IF EXISTS inventory_item CASCADE;
     DROP SOURCE IF EXISTS freshmart CASCADE;
     DROP CONNECTION IF EXISTS pg_connection CASCADE;
     DROP SECRET IF EXISTS pgpass CASCADE;

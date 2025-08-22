@@ -79,7 +79,7 @@ CREATE INDEX idx_promotions_active ON promotions(active);
 CREATE INDEX idx_promotions_product_id_active ON promotions(product_id, active);
 CREATE INDEX idx_inventory_product_id ON inventory(product_id);
 
-CREATE VIEW dynamic_pricing AS
+CREATE VIEW inventory_item AS
 WITH recent_prices AS (
 	SELECT grp.product_id, AVG(price) AS avg_price
 	FROM (SELECT DISTINCT product_id FROM sales) grp, 
@@ -132,7 +132,7 @@ high_demand_products AS (
 	HAVING COUNT(s.sale_id) > (SELECT AVG(total_sales) FROM (SELECT COUNT(*) AS total_sales FROM sales GROUP BY product_id) subquery)
 ),
 
-dynamic_pricing AS (
+item_enriched AS (
 	SELECT 
 		p.product_id,
 		p.base_price,
@@ -164,16 +164,37 @@ dynamic_pricing AS (
 	LEFT JOIN inventory_status inv ON p.product_id = inv.product_id
 	LEFT JOIN high_demand_products hd ON p.product_id = hd.product_id
 )
-
 SELECT 
-	dp.product_id,
-	dp.base_price * dp.popularity_adjustment * dp.promotion_discount * dp.stock_adjustment * dp.demand_multiplier * dp.additional_discount AS adjusted_price,
+	ie.product_id,
+	ie.base_price * ie.popularity_adjustment * ie.promotion_discount * ie.stock_adjustment * ie.demand_multiplier * ie.additional_discount AS live_price,
 	p.last_update_time
-FROM dynamic_pricing dp
-JOIN products p ON dp.product_id = p.product_id;
+FROM item_enriched ie
+JOIN products p ON ie.product_id = p.product_id;
+
+-- Contextual comments
+COMMENT ON VIEW inventory_item IS 
+'This view is the canonical representation of an inventory item. 
+It provides a unified way to reference a product in the system, 
+with its core identity (product_id), its current operational price (live_price), 
+and the last time the underlying product record was updated (last_update_time). 
+Think of this as the "single source of truth" for inventory items within the business context.';
+
+COMMENT ON COLUMN inventory_item.product_id IS 
+'The unique identifier for the inventory item. 
+This connects directly to the products table and allows other systems or queries to join consistently on a stable ID.';
+
+COMMENT ON COLUMN inventory_item.live_price IS 
+'The current selling price of the inventory item. 
+It is not a fixed value in the products table but a property that reflects present business conditions. 
+When another system or dashboard asks, "What is the price of this item right now?" — this is the field to use.';
+
+COMMENT ON COLUMN inventory_item.last_update_time IS 
+'The timestamp of the most recent update to the product record. 
+This tells you how fresh the information is. 
+If you are checking for stale data or debugging why a price looks off, this column is a good reference point.';
 
 
-CREATE MATERIALIZED VIEW mv_dynamic_pricing AS
+CREATE MATERIALIZED VIEW mv_inventory_item AS
 WITH recent_prices AS (
 	SELECT grp.product_id, AVG(price) AS avg_price
 	FROM (SELECT DISTINCT product_id FROM sales) grp,
@@ -221,7 +242,7 @@ high_demand_products AS (
 	GROUP BY p.product_id
 	HAVING COUNT(s.sale_id) > (SELECT AVG(total_sales) FROM (SELECT COUNT(*) AS total_sales FROM sales GROUP BY product_id) subquery)
 ),
-dynamic_pricing AS (
+item_enriched AS (
 	SELECT
 		p.product_id,
 		p.base_price,
@@ -254,17 +275,17 @@ dynamic_pricing AS (
 	LEFT JOIN high_demand_products hd ON p.product_id = hd.product_id
 )
 SELECT
-	dp.product_id,
-	dp.base_price * dp.popularity_adjustment * dp.promotion_discount * dp.stock_adjustment * dp.demand_multiplier * dp.additional_discount AS adjusted_price,
+	ie.product_id,
+	ie.base_price * ie.popularity_adjustment * ie.promotion_discount * ie.stock_adjustment * ie.demand_multiplier * ie.additional_discount AS live_price,
 	p.last_update_time
-FROM dynamic_pricing dp
-JOIN products p ON dp.product_id = p.product_id;
+FROM item_enriched ie
+JOIN products p ON ie.product_id = p.product_id;
 
-CREATE INDEX idx_product_id ON mv_dynamic_pricing(product_id);
+CREATE INDEX idx_mv_inventory_item_product_id ON mv_inventory_item(product_id);
 
 -- Initialize the refresh log
 INSERT INTO materialized_view_refresh_log (view_name, last_refresh)
-VALUES ('mv_dynamic_pricing', now())
+VALUES ('mv_inventory_item', now())
 ON CONFLICT (view_name)
 DO UPDATE SET last_refresh = EXCLUDED.last_refresh;
 
