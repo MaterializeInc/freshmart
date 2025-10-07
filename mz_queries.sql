@@ -141,12 +141,12 @@ item_enriched AS (
 )
 SELECT 
     ie.product_id,
+    p.product_name,
     ie.base_price * ie.popularity_adjustment * ie.promotion_discount * ie.stock_adjustment * ie.demand_multiplier * ie.additional_discount AS live_price,
     p.last_update_time
 FROM item_enriched ie
 JOIN products p ON ie.product_id = p.product_id;
 
--- Contextual comments
 COMMENT ON VIEW inventory_item IS 
 'This view is the canonical representation of an inventory item. 
 It provides a unified way to reference a product in the system, 
@@ -157,6 +157,8 @@ Think of this as the "single source of truth" for inventory items within the bus
 COMMENT ON COLUMN inventory_item.product_id IS 
 'The unique identifier for the inventory item. 
 This connects directly to the products table and allows other systems or queries to join consistently on a stable ID.';
+
+COMMENT ON COLUMN inventory_item.product_name IS 'The name of the product';
 
 COMMENT ON COLUMN inventory_item.live_price IS 
 'The current selling price of the inventory item. 
