@@ -922,7 +922,7 @@ function App() {
                       </Text>
                     </Stack>
                     <Text size="lg" style={{ color: 'rgba(255, 255, 255, 0.9)', marginBottom: '0.5rem' }}>
-                      Use SQL to create live data products you can trust
+                      Create up-to-the-second views into your business, just using SQL
                     </Text>
                   </Stack>
                 </Grid.Col>
