@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MantineProvider, Container, TextInput, Button, Paper, Text, Group, Stack, Badge, LoadingOverlay, Slider, Image, Accordion, Grid, Divider, Select, Switch } from '@mantine/core';
+import { MantineProvider, Container, TextInput, Button, Paper, Text, Group, Stack, Badge, LoadingOverlay, Slider, Image, Accordion, Grid, Divider, Select, Switch, UnstyledButton } from '@mantine/core';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ContainersCPUChart from './components/ContainersCPUChart.jsx';
 import ContainersMemoryChart from './components/ContainersMemoryChart.jsx';
@@ -59,6 +59,7 @@ function App() {
     materializeView: false,
     materialize: false
   });
+  const [isLogoHovered, setIsLogoHovered] = useState(false);
   const productId = '1';
   const { metrics, stats, isFetching, currentMetric } = useMetrics({ productId, onError: setError });
   const lagStatus = getLagStatus(currentMetric.materialize_freshness);
@@ -434,12 +435,32 @@ function App() {
                   </Stack>
                 </Grid.Col>
                 <Grid.Col span={4} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Image
-                    src="/images/materialize-white-logo.png"
-                    height={80}
-                    fit="contain"
-                    alt="Materialize Logo"
-                  />
+                  <UnstyledButton
+                    component="a"
+                    href="http://localhost:6874/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Open Materialize homepage"
+                    onMouseEnter={() => setIsLogoHovered(true)}
+                    onMouseLeave={() => setIsLogoHovered(false)}
+                    style={{
+                      display: 'inline-flex',
+                      borderRadius: '8px',
+                      padding: '6px',
+                      transition: 'transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease',
+                      transform: isLogoHovered ? 'translateY(-2px)' : 'none',
+                      backgroundColor: isLogoHovered ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                      boxShadow: isLogoHovered ? '0 8px 20px rgba(0, 0, 0, 0.35)' : 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Image
+                      src="/images/materialize-white-logo.png"
+                      height={80}
+                      fit="contain"
+                      alt="Materialize Logo"
+                    />
+                  </UnstyledButton>
                 </Grid.Col>
               </Grid>
             </Paper>
