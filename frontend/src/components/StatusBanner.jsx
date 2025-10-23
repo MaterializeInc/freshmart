@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getMzStatus } from '../services/api.js';
 
 const StatusBanner = () => {
     const [showBanner, setShowBanner] = useState(false);
@@ -7,10 +8,8 @@ const StatusBanner = () => {
     useEffect(() => {
         const fetchStatus = async () => {
             try {
-                const response = await fetch("http://localhost:8000/api/mz-status");
-                if (!response.ok) throw new Error("Failed to fetch status");
-                const data = await response.json();
-                setShowBanner(data.restart === true);
+                const response = await getMzStatus();
+                setShowBanner(response.data.restart === true);
             } catch (error) {
                 console.error("Error fetching Materialize status:", error);
             }
@@ -19,7 +18,7 @@ const StatusBanner = () => {
         fetchStatus();
         const interval = setInterval(fetchStatus, 1000); // Runs every second
 
-        return () => {}; // No cleanup, so it keeps polling
+        return () => clearInterval(interval);
     }, []); // Empty dependency array ensures it starts once but keeps running
 
     if (!showBanner) return null;

@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-
-const HISTORY_WINDOW_MS = 3 * 60 * 1000; // 3 minutes in milliseconds
-const API_URL = 'http://localhost:8000'; // FastAPI backend URL
+import { getContainerStats } from '../services/api.js';
+import { HISTORY_WINDOW_MS } from '../constants/config.js';
 
 const ContainersCPUChart = ({ scenarios }) => {
   const [cpuData, setCpuData] = useState([]);
@@ -13,7 +11,7 @@ const ContainersCPUChart = ({ scenarios }) => {
     const fetchCPUStats = async () => {
       try {
         console.debug('Fetching CPU stats...');
-        const response = await axios.get(`${API_URL}/api/container-stats`);
+        const response = await getContainerStats();
         const data = response.data;
         console.debug('Received CPU stats:', data);
         
