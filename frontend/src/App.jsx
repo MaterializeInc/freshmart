@@ -60,6 +60,41 @@ function App() {
     materialize: false
   });
   const [isLogoHovered, setIsLogoHovered] = useState(false);
+  const [isBrowserChecked, setIsBrowserChecked] = useState(false);
+  const [isChromeBrowser, setIsChromeBrowser] = useState(false);
+
+  useEffect(() => {
+    const detectChrome = () => {
+      if (typeof navigator === 'undefined') {
+        setIsChromeBrowser(true);
+        setIsBrowserChecked(true);
+        return;
+      }
+
+      const ua = navigator.userAgent || '';
+      const vendor = navigator.vendor || '';
+      const brands = navigator.userAgentData?.brands;
+
+      let chromeDetected = false;
+
+      if (Array.isArray(brands) && brands.length > 0) {
+        const brandNames = brands.map((brand) => brand.brand);
+        chromeDetected = brandNames.some((name) => /Chrom(e|ium)/i.test(name)) &&
+          !brandNames.some((name) => /(Edge|Opera)/i.test(name));
+      } else {
+        chromeDetected = /Chrome/i.test(ua) &&
+          /Google Inc/.test(vendor) &&
+          !/Edg\//i.test(ua) &&
+          !/OPR/i.test(ua) &&
+          !/SamsungBrowser/i.test(ua);
+      }
+
+      setIsChromeBrowser(chromeDetected);
+      setIsBrowserChecked(true);
+    };
+
+    detectChrome();
+  }, []);
   const productId = '1';
   const { metrics, stats, isFetching, currentMetric } = useMetrics({ productId, onError: setError });
   const lagStatus = getLagStatus(currentMetric.materialize_freshness);
@@ -412,6 +447,31 @@ function App() {
 
   if (error) {
     console.error('Rendering error state:', error);
+  }
+
+  if (!isBrowserChecked) {
+    return null;
+  }
+
+  if (!isChromeBrowser) {
+    return (
+      <MantineProvider theme={mantineTheme} styles={globalStyles}>
+        <div style={{ backgroundColor: 'rgb(13, 17, 22)', minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
+          <Container size="sm">
+            <Paper p="xl" withBorder style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
+              <Stack spacing="md" align="center">
+                <Text size="xl" weight={700} style={{ color: 'white' }}>
+                  Unsupported Browser
+                </Text>
+                <Text align="center" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                  This experience is optimized for Google Chrome. Please open the site in Chrome to continue.
+                </Text>
+              </Stack>
+            </Paper>
+          </Container>
+        </div>
+      </MantineProvider>
+    );
   }
 
   return (
