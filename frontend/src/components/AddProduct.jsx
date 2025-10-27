@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Text } from '@mantine/core';
 import {useTranslation} from "react-i18next";
-import i18n from "../i18n";
+import { getCategories, createProduct } from '../services/api.js';
 
 const AddProduct = () => {
     const { t } = useTranslation();
@@ -20,12 +19,12 @@ const AddProduct = () => {
         // Fetch categories when component mounts
         const fetchCategories = async () => {
             try {
-                const response = await axios.get('http://localhost:8000/api/categories');
-                setCategories(response.data);
-            } catch (error) {
-                console.error('Error fetching categories:', error);
-                setError('Failed to load categories');
-            }
+        const response = await getCategories();
+        setCategories(response.data);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        setError('Failed to load categories');
+      }
         };
 
         fetchCategories();
@@ -42,7 +41,7 @@ const AddProduct = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post('http://localhost:8000/api/products', formData);
+            const response = await createProduct(formData);
             setMessage(`${t("primaryEntity.type")} added successfully!`);
             setError(null);
             // Clear form

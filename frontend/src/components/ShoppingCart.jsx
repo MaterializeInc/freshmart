@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Text, Grid, Paper, Group, Divider, Switch } from '@mantine/core';
 import {useTranslation} from "react-i18next";
-import i18n from "../i18n";
+import { getShoppingCart } from '../services/api.js';
 import ComposableDataProductGraph from "./ComposableDataProductGraph";
 import HierarchicalDataProductGraph from "./HierarchicalDataProductGraph";
 
@@ -35,8 +35,7 @@ const ShoppingCart = ({ onLatencyUpdate }) => {
                 const startTime = performance.now();
                 // Pass the expanded category IDs as a comma‐separated list.
                 const expandedParam = expandedCategories.join(',');
-                const url = `http://localhost:8000/api/shopping-cart?expanded=${expandedParam}`;
-                const response = await fetch(url);
+                const response = await getShoppingCart(expandedParam);
                 const endTime = performance.now();
                 const latency = Math.round(endTime - startTime);
                 setRequestTime(latency);
@@ -44,10 +43,7 @@ const ShoppingCart = ({ onLatencyUpdate }) => {
                     onLatencyUpdate(latency);
                 }
 
-                if (!response.ok) {
-                    throw new Error('Failed to fetch cart data');
-                }
-                const data = await response.json();
+                const data = response.data;
                 setCartItems(data.cart_items);
                 setCategorySubtotals(data.category_subtotals);
                 setCartTotal(data.cart_total);

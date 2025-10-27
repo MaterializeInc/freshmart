@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Paper, Text } from '@mantine/core';
-import axios from 'axios';
 import {useTranslation} from "react-i18next";
 import i18next from '../i18n';
+import { getShoppingCart } from '../services/api.js';
 
 // Custom hook for typewriter effect
 const useTypewriter = (text, speed = 10, shouldTrigger) => {
@@ -63,7 +63,7 @@ const RAGPromptResponse = ({ includeOLTP, currentMetric, currentScenario }) => {
   useEffect(() => {
     const fetchCartData = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/api/shopping-cart');
+        const response = await getShoppingCart();
         setCartData(response.data);
       } catch (error) {
         console.error('Error fetching cart data:', error);

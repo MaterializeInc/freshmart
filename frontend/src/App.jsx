@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
-import { MantineProvider, Container, TextInput, Button, Paper, Text, Group, Stack, Badge, LoadingOverlay, Slider, Image, Accordion, Grid, Divider, Select, Switch } from '@mantine/core';
+import { MantineProvider, Container, TextInput, Button, Paper, Text, Group, Stack, Badge, LoadingOverlay, Slider, Image, Accordion, Grid, Divider, Select, Switch, UnstyledButton } from '@mantine/core';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ContainersCPUChart from './components/ContainersCPUChart.jsx';
 import ContainersMemoryChart from './components/ContainersMemoryChart.jsx';
@@ -13,339 +12,22 @@ import TogglePromotion from './components/TogglePromotion.jsx';
 import StatusBanner from "./components/StatusBanner";
 import { useTranslation } from "react-i18next";
 import i18n from './i18n'
-
-// Utility function to calculate median from a collection of numbers
-function calculateMedian(numbers) {
-  if (!numbers || numbers.length === 0) return 0;
-  
-  const sorted = [...numbers].sort((a, b) => a - b);
-  const length = sorted.length;
-  
-  if (length % 2 === 0) {
-    // Even number of values - return average of middle two
-    return (sorted[Math.floor(length / 2) - 1] + sorted[Math.floor(length / 2)]) / 2;
-  } else {
-    // Odd number of values - return middle value
-    return sorted[Math.floor(length / 2)];
-  }
-}
-
-const HISTORY_WINDOW_MS = 3 * 60 * 1000; // 3 minutes in milliseconds
-const API_URL = 'http://localhost:8000'; // FastAPI backend URL
-
-const theme = {
-  colorScheme: 'dark',
-  fontFamily: 'Inter, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-  fontFeatureSettings: '"tnum", "lnum", "cv06", "cv10"',
-  fontSize: {
-    xs: '12px',
-    sm: '14px',
-    md: '16px',
-    lg: '18px',
-    xl: '20px',
-  },
-  headings: {
-    fontFamily: 'Inter, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-    fontFeatureSettings: '"tnum", "lnum", "cv06", "cv10"',
-  },
-  components: {
-    Paper: {
-      defaultProps: {
-        shadow: 'sm',
-        radius: 'sm',
-        withBorder: true,
-      },
-      styles: (theme) => ({
-        root: {
-          backgroundColor: 'rgb(13, 17, 22)',
-          borderColor: theme.colors.dark[5],
-          transition: 'background-color 0.2s ease',
-        }
-      })
-    },
-    Button: {
-      defaultProps: {
-        radius: 'sm',
-      },
-      styles: (theme) => ({
-        root: {
-          fontFamily: 'Inter, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-          fontFeatureSettings: '"tnum", "lnum", "cv06", "cv10"',
-          transition: 'all 0.2s ease',
-        }
-      })
-    },
-    Container: {
-      defaultProps: {
-        size: 'xl',
-      },
-      styles: {
-        root: {
-          maxWidth: '1400px',
-        }
-      }
-    },
-    Text: {
-      styles: {
-        root: {
-          fontFeatureSettings: '"tnum", "lnum", "cv06", "cv10"',
-        }
-      }
-    },
-    Badge: {
-      styles: (theme) => ({
-        root: {
-          fontFamily: 'Inter, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-          fontFeatureSettings: '"tnum", "lnum", "cv06", "cv10"',
-        }
-      })
-    },
-    Accordion: {
-      styles: (theme) => ({
-        item: {
-          backgroundColor: 'transparent',
-          border: 'none',
-        },
-        control: {
-          backgroundColor: 'transparent',
-          '&:hover': {
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          },
-          '&[dataActive="true"]': {
-            backgroundColor: 'transparent',
-          }
-        },
-        content: {
-          backgroundColor: 'transparent',
-        },
-        chevron: {
-          color: '#BCB9C0',
-        }
-      })
-    },
-    Select: {
-      styles: {
-        dropdown: {
-          backgroundColor: 'rgb(13, 17, 22) !important',
-          borderColor: 'rgba(255, 255, 255, 0.1) !important',
-        },
-        item: {
-          backgroundColor: 'rgb(13, 17, 22) !important',
-          color: '#BCB9C0 !important',
-          '&[data-selected]': {
-            backgroundColor: 'rgba(255, 255, 255, 0.1) !important',
-            color: '#BCB9C0 !important',
-          },
-          '&[data-hovered]': {
-            backgroundColor: 'rgba(255, 255, 255, 0.05) !important',
-            color: '#BCB9C0 !important',
-          },
-        },
-      }
-    },
-  },
-  colors: {
-    dark: [
-      '#F8F9FA',
-      '#E9ECEF',
-      '#DEE2E6',
-      '#CED4DA',
-      '#BCB9C0',
-      '#66626A',
-      '#323135',
-      '#212529',
-      '#0D1116',
-      '#0D1116',
-    ],
-  },
-  other: {
-    transition: {
-      default: '0.2s ease',
-    }
-  }
-};
-
-// Update flash animation for dark theme
-const flashAnimation = {
-  '@keyframes flash': {
-    '0%': { backgroundColor: 'transparent' },
-    '25%': { backgroundColor: 'rgba(255, 251, 204, 0.1)' },
-    '100%': { backgroundColor: 'transparent' }
-  }
-};
-
-// Update graph styles for dark theme
-const graphStyles = {
-  node: {
-    base: {
-      padding: '8px 16px',
-      borderRadius: '4px',
-      border: '1px solid rgba(255, 255, 255, 0.1)',
-      backgroundColor: 'rgb(13, 17, 22)',
-      display: 'inline-block',
-      fontSize: '14px',
-      fontWeight: 500,
-      margin: '4px',
-      position: 'relative',
-      minWidth: '140px',
-      fontFeatureSettings: '"tnum", "lnum", "cv06", "cv10"',
-    },
-    products: { borderColor: '#228be6', color: '#228be6' },
-    sales: { borderColor: '#40c057', color: '#40c057' },
-    promotions: { borderColor: '#fd7e14', color: '#fd7e14' },
-    inventory: { borderColor: '#7950f2', color: '#7950f2' },
-    categories: { borderColor: '#be4bdb', color: '#be4bdb' },
-    view: { borderColor: '#1c7ed6', color: '#1c7ed6', borderWidth: '2px' }
-  },
-  line: {
-    position: 'absolute',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    zIndex: 0
-  }
-};
-
-// Update chart styles
-const chartTheme = {
-  background: 'rgb(13, 17, 22)',
-  textColor: '#BCB9C0',
-  fontSize: 12,
-  axis: {
-    domain: {
-      line: {
-        stroke: '#66626A',
-        strokeWidth: 1,
-      },
-    },
-    ticks: {
-      line: {
-        stroke: '#66626A',
-        strokeWidth: 1,
-      },
-    },
-  },
-  grid: {
-    line: {
-      stroke: '#323135',
-      strokeWidth: 1,
-    },
-  },
-};
-
-// Add global styles
-const globalStyles = {
-  'body': {
-    backgroundColor: 'rgb(13, 17, 22) !important',
-    color: '#BCB9C0',
-    fontFamily: 'Inter, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-    fontFeatureSettings: '"tnum", "lnum", "cv06", "cv10"',
-    fontSize: '14px',
-    lineHeight: 1.5,
-    margin: 0,
-    padding: 0,
-  },
-  '#root': {
-    backgroundColor: 'rgb(13, 17, 22)',
-    minHeight: '100vh',
-  },
-  '.mantine-Container-root': {
-    backgroundColor: 'rgb(13, 17, 22)',
-  },
-  pre: {
-    fontFamily: 'SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-    whiteSpace: 'pre-wrap',
-    overflowWrap: 'break-word',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    padding: '1rem',
-    borderRadius: '4px',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    color: '#BCB9C0',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    'th, td': {
-      padding: '8px',
-      borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-      fontFeatureSettings: '"tnum", "lnum", "cv06", "cv10"',
-      color: '#BCB9C0',
-    },
-    th: {
-      textAlign: 'left',
-      fontWeight: 600,
-      color: '#BCB9C0',
-    },
-  },
-};
-
-function PriceDisplay({ price, prevPrice, reactionTime, weight = 700, size = "xl" }) {
-  const priceRef = useRef(null);
-  const lastReactionTimeRef = useRef(reactionTime);
-  const lastUpdateTimeRef = useRef(Date.now());
-  const [dots, setDots] = useState('');
-
-  useEffect(() => {
-    if (price !== prevPrice && priceRef.current) {
-      priceRef.current.style.animation = 'none';
-      // Trigger reflow
-      void priceRef.current.offsetHeight;
-      priceRef.current.style.animation = 'flash 1s ease';
-    }
-  }, [price, prevPrice]);
-
-  useEffect(() => {
-    if (reactionTime !== null && reactionTime !== undefined) {
-      lastReactionTimeRef.current = reactionTime;
-      lastUpdateTimeRef.current = Date.now();
-    }
-  }, [reactionTime]);
-
-  // Add dots animation effect
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setDots(prev => {
-        if (prev === '...') return '';
-        return prev + '.';
-      });
-    }, 500);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Calculate the extrapolated reaction time
-  const getExtrapolatedReactionTime = () => {
-    if (reactionTime !== null && reactionTime !== undefined) {
-      return reactionTime;
-    }
-    if (lastReactionTimeRef.current === null || lastReactionTimeRef.current === undefined) {
-      return null;
-    }
-    const timeSinceLastUpdate = (Date.now() - lastUpdateTimeRef.current);
-    return lastReactionTimeRef.current + timeSinceLastUpdate;
-  };
-
-  const displayReactionTime = getExtrapolatedReactionTime();
-
-  return (
-    <Stack spacing={4} align="center">
-      <Text 
-        ref={priceRef}
-        size={size} 
-        weight={weight} 
-        color="blue"
-        style={{ 
-          animation: 'none',
-          '@keyframes flash': flashAnimation['@keyframes flash']
-        }}
-      >
-        ${price?.toFixed(2) || 'N/A'}
-      </Text>
-      <Text size="xs" color="dimmed" style={{ minHeight: '20px', opacity: displayReactionTime === null ? 0.7 : 1 }}>
-        {displayReactionTime !== null ? 
-          `As of ${(displayReactionTime / 1000).toFixed(1)} seconds ago` :
-          `Waiting for first response${dots}`}
-      </Text>
-    </Stack>
-  );
-}
+import { useMetrics } from './hooks/useMetrics.js';
+import { mantineTheme, globalStyles, chartTheme } from './theme/index.js';
+import PriceDisplay from './components/PriceDisplay.jsx';
+import { calculateMedian } from './utils/statistics.js';
+import {
+  configureRefreshInterval,
+  getDatabaseSize,
+  getDemoMode,
+  getRefreshInterval,
+  getTrafficState,
+  getViewIndexStatus,
+  toggleIsolationLevel,
+  togglePromotion as togglePromotionApi,
+  toggleTrafficSource,
+  toggleViewIndex,
+} from './services/api.js';
 
 function getLagStatus(lag) {
   if (lag === null || lag === undefined) return { color: 'gray', label: 'Unknown' };
@@ -354,25 +36,8 @@ function getLagStatus(lag) {
   return { color: 'red', label: 'High' };
 }
 
-function calculateStats(values) {
-  if (!values || values.length === 0) return { max: 0, avg: 0, p99: 0 };
-  
-  const sortedValues = [...values].sort((a, b) => a - b);
-  const max = Math.max(...values);
-  const avg = values.reduce((a, b) => a + b, 0) / values.length;
-  const p99Index = Math.floor(values.length * 0.99);
-  const p99 = sortedValues[p99Index] || max;
-  
-  return {
-    max: max * 1000, // Convert to ms
-    avg: avg * 1000,
-    p99: p99 * 1000
-  };
-}
-
 function App() {
   const { t } = useTranslation();
-  const [metrics, setMetrics] = useState([]);
   const [error, setError] = useState(null);
   const [indexExists, setIndexExists] = useState(false);
   const [isIndexLoading, setIsIndexLoading] = useState(false);
@@ -384,15 +49,6 @@ function App() {
   const [databaseSize, setDatabaseSize] = useState(null);
   const [showTTCA, setShowTTCA] = useState(false);
   const [shoppingCartLatency, setShoppingCartLatency] = useState(null);
-  const [stats, setStats] = useState({
-    view: { max: 0, avg: 0, p99: 0 },
-    materializeView: { max: 0, avg: 0, p99: 0 },
-    materialize: { max: 0, avg: 0, p99: 0 },
-    mvRefresh: { max: 0, avg: 0, p99: 0 },
-    viewEndToEnd: { max: 0, avg: 0, p99: 0 },
-    materializeViewEndToEnd: { max: 0, avg: 0, p99: 0 },
-    materializeEndToEnd: { max: 0, avg: 0, p99: 0 }
-  });
   const [scenarios, setScenarios] = useState({
     postgres: true,
     materializeView: false,
@@ -403,24 +59,62 @@ function App() {
     materializeView: false,
     materialize: false
   });
+  const [isLogoHovered, setIsLogoHovered] = useState(false);
+  const [isBrowserChecked, setIsBrowserChecked] = useState(false);
+  const [isChromeBrowser, setIsChromeBrowser] = useState(false);
+
+  useEffect(() => {
+    const detectChrome = () => {
+      if (typeof navigator === 'undefined') {
+        setIsChromeBrowser(true);
+        setIsBrowserChecked(true);
+        return;
+      }
+
+      const ua = navigator.userAgent || '';
+      const vendor = navigator.vendor || '';
+      const brands = navigator.userAgentData?.brands;
+
+      let chromeDetected = false;
+
+      if (Array.isArray(brands) && brands.length > 0) {
+        const brandNames = brands.map((brand) => brand.brand);
+        chromeDetected = brandNames.some((name) => /Chrom(e|ium)/i.test(name)) &&
+          !brandNames.some((name) => /(Edge|Opera)/i.test(name));
+      } else {
+        chromeDetected = /Chrome/i.test(ua) &&
+          /Google Inc/.test(vendor) &&
+          !/Edg\//i.test(ua) &&
+          !/OPR/i.test(ua) &&
+          !/SamsungBrowser/i.test(ua);
+      }
+
+      setIsChromeBrowser(chromeDetected);
+      setIsBrowserChecked(true);
+    };
+
+    detectChrome();
+  }, []);
   const productId = '1';
-  const [isFetching, setIsFetching] = useState(false);
-  const currentMetric = metrics[metrics.length - 1] || {};
+  const { metrics, stats, isFetching, currentMetric } = useMetrics({ productId, onError: setError });
   const lagStatus = getLagStatus(currentMetric.materialize_freshness);
   const [currentScenario, setCurrentScenario] = useState('direct'); // Options: direct, batch, materialize, cqrs
   const initialTrafficStateFetched = useRef(false);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/demo")
-        .then((res) => res.json())
-        .then((data) => {
-          console.log(`setting demo to ${data.mode}`);
+    const loadDemoMode = async () => {
+      try {
+        const response = await getDemoMode();
+        const mode = response.data?.mode;
+        if (mode) {
+          i18n.changeLanguage(mode);
+        }
+      } catch (demoError) {
+        console.error('Error fetching demo:', demoError);
+      }
+    };
 
-          if (data.mode) {
-            i18n.changeLanguage(data.mode);
-          }
-        })
-        .catch((error) => console.error("Error fetching demo:", error));
+    loadDemoMode();
   }, []);
 
   // Add refs for previous prices
@@ -503,155 +197,10 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    let isActive = true;
-    let retryCount = 0;
-    const MAX_RETRIES = 3;
-    const POLL_INTERVAL = 1000; // Poll every second
-
-    const fetchMetrics = async () => {
-      if (!isActive || isFetching) return;
-      
-      try {
-        setIsFetching(true);
-        console.debug('Fetching metrics...');
-        const response = await axios.get(`${API_URL}/metrics/${productId}`, {
-          timeout: 300000, // 5 minutes timeout
-          headers: {
-            'Accept': 'application/json'
-          }
-        });
-        
-        // Reset retry count on success
-        retryCount = 0;
-        
-        if (!response.data) {
-          console.error('No data received from API');
-          return;
-        }
-
-        const data = response.data;
-        console.debug('Fetch response:', data);
-        
-        const now = Date.now();
-        const timestamp = data.timestamp;
-        
-        setMetrics(prev => {
-          const filtered = prev.filter(m => (now - m.timestamp) <= HISTORY_WINDOW_MS);
-          
-          // Get the last metric to access previous prices
-          const lastMetric = filtered[filtered.length - 1] || {};
-          
-          const newMetric = {
-            timestamp,
-            isolation_level: data.isolation_level,
-            // View data - retain previous price if new one is null
-            view_latency: data.view_latency,
-            view_end_to_end_latency: data.view_end_to_end_latency,
-            view_price: data.view_price !== null ? data.view_price : lastMetric.view_price,
-            view_qps: data.view_qps,
-            view_stats: data.view_stats,
-            view_end_to_end_stats: data.view_end_to_end_stats,
-            // Materialized view data - retain previous price if new one is null
-            materialized_view_latency: data.materialized_view_latency,
-            materialized_view_end_to_end_latency: data.materialized_view_end_to_end_latency,
-            materialized_view_price: data.materialized_view_price !== null ? data.materialized_view_price : lastMetric.materialized_view_price,
-            materialized_view_qps: data.materialized_view_qps,
-            materialized_view_freshness: data.materialized_view_freshness,
-            materialized_view_refresh_duration: data.materialized_view_refresh_duration,
-            materialized_view_stats: data.materialized_view_stats,
-            materialized_view_end_to_end_stats: data.materialized_view_end_to_end_stats,
-            materialized_view_refresh_stats: data.materialized_view_refresh_stats,
-            // Materialize data - retain previous price if new one is null
-            materialize_latency: data.materialize_latency,
-            materialize_end_to_end_latency: data.materialize_end_to_end_latency,
-            materialize_price: data.materialize_price !== null ? data.materialize_price : lastMetric.materialize_price,
-            materialize_qps: data.materialize_qps,
-            materialize_freshness: data.materialize_freshness,
-            materialize_stats: data.materialize_stats,
-            materialize_end_to_end_stats: data.materialize_end_to_end_stats
-          };
-          
-          return [...filtered, newMetric];
-        });
-        
-        // Update all stats at once
-        setStats(prev => ({
-          ...prev,
-          view: data.view_stats ? {
-            max: data.view_stats.max,
-            avg: data.view_stats.average,
-            p99: data.view_stats.p99
-          } : prev.view,
-          viewEndToEnd: data.view_end_to_end_stats ? {
-            max: data.view_end_to_end_stats.max,
-            avg: data.view_end_to_end_stats.average,
-            p99: data.view_end_to_end_stats.p99
-          } : prev.viewEndToEnd,
-          materializeView: data.materialized_view_stats ? {
-            max: data.materialized_view_stats.max,
-            avg: data.materialized_view_stats.average,
-            p99: data.materialized_view_stats.p99
-          } : prev.materializeView,
-          materializeViewEndToEnd: data.materialized_view_end_to_end_stats ? {
-            max: data.materialized_view_end_to_end_stats.max,
-            avg: data.materialized_view_end_to_end_stats.average,
-            p99: data.materialized_view_end_to_end_stats.p99
-          } : prev.materializeViewEndToEnd,
-          materialize: data.materialize_stats ? {
-            max: data.materialize_stats.max,
-            avg: data.materialize_stats.average,
-            p99: data.materialize_stats.p99
-          } : prev.materialize,
-          materializeEndToEnd: data.materialize_end_to_end_stats ? {
-            max: data.materialize_end_to_end_stats.max,
-            avg: data.materialize_end_to_end_stats.average,
-            p99: data.materialize_end_to_end_stats.p99
-          } : prev.materializeEndToEnd,
-          mvRefresh: data.materialized_view_refresh_stats ? {
-            max: data.materialized_view_refresh_stats.max * 1000, // Convert to ms
-            avg: data.materialized_view_refresh_stats.average * 1000,
-            p99: data.materialized_view_refresh_stats.p99 * 1000
-          } : prev.mvRefresh
-        }));
-        
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching metrics:', err);
-        
-        // Handle connection errors with retries
-        if (err.code === 'ECONNABORTED' || err.code === 'ECONNREFUSED') {
-          retryCount++;
-          if (retryCount <= MAX_RETRIES) {
-            console.debug(`Retry attempt ${retryCount}/${MAX_RETRIES}`);
-            const backoffDelay = 1000 * retryCount; // Exponential backoff
-            setTimeout(fetchMetrics, backoffDelay);
-            return;
-          }
-        }
-        
-        setError(err.response?.data?.detail || err.message);
-      } finally {
-        setIsFetching(false);
-        // Schedule next poll
-        if (isActive) {
-          setTimeout(fetchMetrics, POLL_INTERVAL);
-        }
-      }
-    };
-
-    fetchMetrics();
-    return () => {
-      isActive = false;
-    };
-  }, [productId]);
-
   const togglePromotion = async () => {
     try {
       setIsPromotionLoading(true);
-      const response = await axios.post(`${API_URL}/toggle-promotion/${productId}`, {
-        timeout: 5000 // 5 second timeout
-      });
+      const response = await togglePromotionApi(productId);
       if (response.data.status === 'success') {
         setIsPromotionLoading(false);
       }
@@ -665,7 +214,7 @@ function App() {
   // Add function to fetch view index status
   const fetchViewIndexStatus = async () => {
     try {
-      const response = await axios.get(`${API_URL}/view-index-status`);
+      const response = await getViewIndexStatus();
       setIndexExists(response.data.index_exists);
     } catch (err) {
       console.error('Error fetching view index status:', err);
@@ -680,7 +229,7 @@ function App() {
   const toggleIndex = async () => {
     try {
       setIsIndexLoading(true);
-      const response = await axios.post(`${API_URL}/toggle-view-index`);
+      const response = await toggleViewIndex();
       setIndexExists(response.data.index_exists);
       console.log('Index toggled:', response.data);
     } catch (err) {
@@ -696,7 +245,7 @@ function App() {
   const toggleIsolation = async () => {
     try {
       setIsIsolationLoading(true);
-      const response = await axios.post(`${API_URL}/toggle-isolation`);
+      const response = await toggleIsolationLevel();
       if (response.data.status === 'success') {
         setIsolationLevel(response.data.isolation_level);
       }
@@ -712,7 +261,7 @@ function App() {
     if (value < 1) return;
     try {
       setIsRefreshConfigLoading(true);
-      const response = await axios.post(`${API_URL}/configure-refresh-interval/${value}`);
+      const response = await configureRefreshInterval(value);
       if (response.data.status === 'success') {
         setRefreshInterval(value);
         console.debug(`Updated refresh interval to ${value} seconds`);
@@ -726,21 +275,20 @@ function App() {
   };
 
   useEffect(() => {
-    if (metrics.length > 0) {
-      const currentMetric = metrics[metrics.length - 1];
+    if (currentMetric?.isolation_level) {
       setIsolationLevel(currentMetric.isolation_level);
     }
-  }, [metrics]);
+  }, [currentMetric]);
 
   // Add function to fetch database size
-    const fetchDatabaseSize = async () => {
-      try {
-      const response = await axios.get(`${API_URL}/database-size`);
+  const fetchDatabaseSize = async () => {
+    try {
+      const response = await getDatabaseSize();
       setDatabaseSize(response.data.size_gb);
     } catch (err) {
       console.error('Error fetching database size:', err);
-      }
-    };
+    }
+  };
 
   // Add useEffect to fetch database size periodically
   useEffect(() => {
@@ -756,17 +304,17 @@ function App() {
   // Add useEffect to fetch initial refresh interval
   useEffect(() => {
     const fetchRefreshInterval = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/current-refresh-interval`);
+      try {
+        const response = await getRefreshInterval();
         if (response.data.status === 'success') {
           setRefreshInterval(response.data.refresh_interval);
           console.debug(`Initialized refresh interval to ${response.data.refresh_interval} seconds`);
-    }
+        }
       } catch (err) {
         console.error('Error fetching initial refresh interval:', err);
         // Keep the default value of 60 if fetch fails
       }
-  };
+    };
 
     fetchRefreshInterval();
   }, []);  // Empty dependency array means this runs once on mount
@@ -788,19 +336,19 @@ function App() {
       }
 
       // Get current state
-      const currentState = await axios.get(`${API_URL}/api/traffic-state`);
+      const currentState = await getTrafficState();
       const isCurrentlyEnabled = currentState.data[backendSource];
       
       // Only toggle if current state doesn't match desired state
       if (desiredState !== null && isCurrentlyEnabled !== desiredState) {
-        await axios.post(`${API_URL}/api/toggle-traffic/${backendSource}`);
+        await toggleTrafficSource(backendSource);
       } else if (desiredState === null) {
         // If no desired state specified, just toggle
-        await axios.post(`${API_URL}/api/toggle-traffic/${backendSource}`);
+        await toggleTrafficSource(backendSource);
       }
       
       // After toggle, fetch the current state to ensure we're in sync
-      const stateResponse = await axios.get(`${API_URL}/api/traffic-state`);
+      const stateResponse = await getTrafficState();
       setTrafficEnabled({
         postgres: stateResponse.data.view,
         materializeView: stateResponse.data.materialized_view,
@@ -812,7 +360,7 @@ function App() {
       
       // On error, refresh the state to ensure we're in sync
       try {
-        const stateResponse = await axios.get(`${API_URL}/api/traffic-state`);
+        const stateResponse = await getTrafficState();
         setTrafficEnabled({
           postgres: stateResponse.data.view,
           materializeView: stateResponse.data.materialized_view,
@@ -827,34 +375,30 @@ function App() {
   // Add useEffect to fetch initial traffic state and set up periodic refresh
   useEffect(() => {
     const fetchTrafficState = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/api/traffic-state`);
+      try {
+        const response = await getTrafficState();
         console.debug('Traffic state response:', response.data);
-        
+
         if (!initialTrafficStateFetched.current) {
-          // For initial load, set up the default state
           initialTrafficStateFetched.current = true;
-          
-          // Enable all traffic sources by default, only control visibility through scenarios
+
           await handleTrafficToggle('postgres', true);
           await handleTrafficToggle('materializeView', true);
           await handleTrafficToggle('materialize', true);
-          
+
           setTrafficEnabled({
             postgres: true,
             materializeView: true,
-            materialize: true
-      });
+            materialize: true,
+          });
         } else {
-          // For subsequent refreshes, check if the state matches the current scenario
           const expectedState = {
-            direct: { postgres: true, materializeView: true, materialize: true },  // Keep all running
-            batch: { postgres: true, materializeView: true, materialize: true },   // Keep all running
+            direct: { postgres: true, materializeView: true, materialize: true },
+            batch: { postgres: true, materializeView: true, materialize: true },
             materialize: { postgres: true, materializeView: true, materialize: true },
-            cqrs: { postgres: false, materializeView: false, materialize: true }
+            cqrs: { postgres: false, materializeView: false, materialize: true },
           }[currentScenario];
 
-          // If state doesn't match what we expect for the scenario, fix it
           if (expectedState) {
             if (response.data.view !== expectedState.postgres) {
               await handleTrafficToggle('postgres', expectedState.postgres);
@@ -867,17 +411,16 @@ function App() {
             }
           }
 
-          // Update the UI state
           setTrafficEnabled({
             postgres: response.data.view,
             materializeView: response.data.materialized_view,
-            materialize: response.data.materialize
+            materialize: response.data.materialize,
           });
         }
-    } catch (error) {
+      } catch (error) {
         console.error('Error fetching traffic state:', error);
-    }
-  };
+      }
+    };
 
     // Fetch initial state
     fetchTrafficState();
@@ -906,8 +449,33 @@ function App() {
     console.error('Rendering error state:', error);
   }
 
+  if (!isBrowserChecked) {
+    return null;
+  }
+
+  if (!isChromeBrowser) {
+    return (
+      <MantineProvider theme={mantineTheme} styles={globalStyles}>
+        <div style={{ backgroundColor: 'rgb(13, 17, 22)', minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
+          <Container size="sm">
+            <Paper p="xl" withBorder style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
+              <Stack spacing="md" align="center">
+                <Text size="xl" weight={700} style={{ color: 'white' }}>
+                  Unsupported Browser
+                </Text>
+                <Text align="center" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                  This experience is optimized for Google Chrome. Please open the site in Chrome to continue.
+                </Text>
+              </Stack>
+            </Paper>
+          </Container>
+        </div>
+      </MantineProvider>
+    );
+  }
+
   return (
-    <MantineProvider theme={theme} styles={globalStyles}>
+    <MantineProvider theme={mantineTheme} styles={globalStyles}>
       <div style={{ backgroundColor: 'rgb(13, 17, 22)', minHeight: '100vh' }}>
       <Container size="xl" py="xl">
         <StatusBanner/>
@@ -927,12 +495,32 @@ function App() {
                   </Stack>
                 </Grid.Col>
                 <Grid.Col span={4} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Image
-                    src="/images/materialize-white-logo.png"
-                    height={80}
-                    fit="contain"
-                    alt="Materialize Logo"
-                  />
+                  <UnstyledButton
+                    component="a"
+                    href="http://localhost:6874/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Open Materialize homepage"
+                    onMouseEnter={() => setIsLogoHovered(true)}
+                    onMouseLeave={() => setIsLogoHovered(false)}
+                    style={{
+                      display: 'inline-flex',
+                      borderRadius: '8px',
+                      padding: '6px',
+                      transition: 'transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease',
+                      transform: isLogoHovered ? 'translateY(-2px)' : 'none',
+                      backgroundColor: isLogoHovered ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                      boxShadow: isLogoHovered ? '0 8px 20px rgba(0, 0, 0, 0.35)' : 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Image
+                      src="/images/materialize-white-logo.png"
+                      height={80}
+                      fit="contain"
+                      alt="Materialize Logo"
+                    />
+                  </UnstyledButton>
                 </Grid.Col>
               </Grid>
             </Paper>
@@ -1701,30 +1289,14 @@ function App() {
                     <Text size="lg" weight={600} style={{ color: '#BCB9C0' }}>How Materialize Works</Text>
                   </Accordion.Control>
                   <Accordion.Panel>
-                    <Grid>
-                      <Grid.Col span={6}>
-                        <Text size="xl" style={{ 
-                          color: '#BCB9C0',
-                          lineHeight: 1.7,
-                          marginRight: '2rem',
-                          fontSize: '1.5rem',
-                          fontWeight: 500,
-                          marginTop: '2rem'
-                        }}>
-                          Materialize is a real-time data integration platform that helps you transform, deliver, and act on fast-changing data, just using SQL.
-                        </Text>
-                      </Grid.Col>
-                      <Grid.Col span={6}>
-                        <Paper p="xl" style={{ backgroundColor: 'rgb(13, 17, 22)', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                          <Image
-                            src="/images/materialize-architecture.png"
-                            height={425}
-                            fit="contain"
-                            alt="Materialize Architecture"
-                          />
-                        </Paper>
-                      </Grid.Col>
-                    </Grid>
+                    <Paper p="xl" style={{ backgroundColor: 'rgb(15, 12, 32)', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                      <Image
+                          src="/images/materialize-architecture.png"
+                          height={425}
+                          fit="contain"
+                          alt="Materialize Architecture"
+                        />
+                      </Paper>
                   </Accordion.Panel>
                 </Accordion.Item>
               </Accordion>
@@ -1955,154 +1527,6 @@ function App() {
                 </Accordion.Item>
               </Accordion>
             </Paper>
-            <Paper p="xl" withBorder style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
-              <Accordion defaultValue={null} styles={{
-                control: {
-                  borderBottom: 'none'
-                },
-                item: {
-                  borderBottom: 'none'
-                }
-              }}>
-                <Accordion.Item value="useCases">
-                  <Accordion.Control>
-                    <Text size="xl" weight={700} style={{ color: '#BCB9C0' }}>
-                      Use Cases
-                    </Text>
-                  </Accordion.Control>
-                  <Accordion.Panel>
-                    <Grid>
-                      <Grid.Col span={3}>
-                        <Paper p="md" withBorder style={{ 
-                          height: '400px', 
-                          backgroundColor: 'rgb(13, 17, 22)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                          }
-                        }}>
-                          <Stack align="center" spacing="md" style={{ flex: 1 }}>
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                              <Image
-                                src="/images/usecase-customer-360.png"
-                                height={180}
-                                fit="contain"
-                                alt="Customer 360"
-                              />
-                            </div>
-                            <Text size="lg" weight={600} align="center" style={{ color: 'white' }}>
-                              Customer 360
-                            </Text>
-                            <Text size="sm" color="gray.3" align="center">
-                              Build a real-time view of your customers across touchpoints
-                            </Text>
-                          </Stack>
-                        </Paper>
-                      </Grid.Col>
-                      <Grid.Col span={3}>
-                        <Paper p="md" withBorder style={{ 
-                          height: '400px', 
-                          backgroundColor: 'rgb(13, 17, 22)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                          }
-                        }}>
-                          <Stack align="center" spacing="md" style={{ flex: 1 }}>
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                              <Image
-                                src="/images/usecase-digital-twin.png"
-                                height={180}
-                                fit="contain"
-                                alt="Digital Twin"
-                              />
-                            </div>
-                            <Text size="lg" weight={600} align="center" style={{ color: 'white' }}>
-                              Digital Twin
-                            </Text>
-                            <Text size="sm" color="gray.3" align="center">
-                              Create live representations of physical systems and processes
-                            </Text>
-                          </Stack>
-                        </Paper>
-                      </Grid.Col>
-                      <Grid.Col span={3}>
-                        <Paper p="md" withBorder style={{ 
-                          height: '400px', 
-                          backgroundColor: 'rgb(13, 17, 22)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                          }
-                        }}>
-                          <Stack align="center" spacing="md" style={{ flex: 1 }}>
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                              <Image
-                                src="/images/usecase-agent-orchestration.png"
-                                height={180}
-                                fit="contain"
-                                alt="Agent Orchestration"
-                              />
-                            </div>
-                            <Text size="lg" weight={600} align="center" style={{ color: 'white' }}>
-                              Agent Orchestration
-                            </Text>
-                            <Text size="sm" color="gray.3" align="center">
-                              Coordinate AI agents with real-time data and state management
-                            </Text>
-                          </Stack>
-                        </Paper>
-                      </Grid.Col>
-                      <Grid.Col span={3}>
-                        <Paper p="md" withBorder style={{ 
-                          height: '400px', 
-                          backgroundColor: 'rgb(13, 17, 22)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                          }
-                        }}>
-                          <Stack align="center" spacing="md" style={{ flex: 1 }}>
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                              <Image
-                                src="/images/usecase-realtime-portfolio-analysis.png"
-                                height={180}
-                                fit="contain"
-                                alt="Real-time Portfolio Analysis"
-          />
-                            </div>
-                            <Text size="lg" weight={600} align="center" style={{ color: 'white' }}>
-                              Portfolio Analysis
-                            </Text>
-                            <Text size="sm" color="gray.3" align="center">
-                              Monitor and analyze investment portfolios with live market data
-                            </Text>
-                          </Stack>
-                        </Paper>
-                      </Grid.Col>
-                    </Grid>
-                  </Accordion.Panel>
-                </Accordion.Item>
-              </Accordion>
-            </Paper>
-
-            
-
-            
-
-            
-
-            
-
-            
 
             <Accordion defaultValue={null} mt="md">
               <Accordion.Item value="advanced">
@@ -2227,4 +1651,3 @@ function App() {
 }
 
 export default App;
-

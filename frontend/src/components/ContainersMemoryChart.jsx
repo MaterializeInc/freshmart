@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -11,6 +10,8 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { getContainerStats } from '../services/api.js';
+import { HISTORY_WINDOW_MS } from '../constants/config.js';
 
 ChartJS.register(
   CategoryScale,
@@ -21,9 +22,6 @@ ChartJS.register(
   Tooltip,
   Legend
 );
-
-const HISTORY_WINDOW_MS = 3 * 60 * 1000; // 3 minutes in milliseconds
-const API_URL = 'http://localhost:8000'; // FastAPI backend URL
 
 // Container memory limits in GB
 const CONTAINER_MEMORY_LIMITS = {
@@ -46,7 +44,7 @@ const ContainersMemoryChart = ({ scenarios }) => {
     const fetchMemoryStats = async () => {
       try {
         console.debug('Fetching memory stats...');
-        const response = await axios.get(`${API_URL}/api/container-stats`);
+        const response = await getContainerStats();
         const data = response.data;
         console.debug('Received memory stats:', data);
         

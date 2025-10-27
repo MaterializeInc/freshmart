@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button, Text, NumberInput, Group } from '@mantine/core';
 import {useTranslation} from "react-i18next";
-import i18n from "../i18n";
+import { togglePromotion as togglePromotionApi } from '../services/api.js';
 
 const TogglePromotion = () => {
     const { t } = useTranslation();
@@ -17,13 +17,10 @@ const TogglePromotion = () => {
         }
 
         try {
-            const response = await fetch(`http://localhost:8000/toggle-promotion/${productId}`, {
-                method: 'POST',
-            });
+            const response = await togglePromotionApi(productId);
+            const result = response.data;
 
-            const result = await response.json();
-            
-            if (!response.ok || result.status === 'error') {
+            if (result.status === 'error') {
                 throw new Error(result.message || 'Failed to toggle promotion');
             }
 
