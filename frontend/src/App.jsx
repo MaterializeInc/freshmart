@@ -500,7 +500,7 @@ function App() {
                     href="http://localhost:6874/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label="Open Materialize homepage"
+                    aria-label="Open Materialize console"
                     onMouseEnter={() => setIsLogoHovered(true)}
                     onMouseLeave={() => setIsLogoHovered(false)}
                     style={{
