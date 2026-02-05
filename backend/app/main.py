@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 from pydantic import BaseModel
 
+from . import agent
 from . import database
 import logging
 
@@ -351,6 +352,10 @@ class ProductCreate(BaseModel):
     price: float
 
 
+class AgentRequest(BaseModel):
+    use_tools: bool
+
+
 @app.get("/api/categories")
 async def get_categories():
     """Get all available product categories"""
@@ -373,6 +378,24 @@ async def add_product(product: ProductCreate):
     except Exception as e:
         logger.error(f"Error adding product: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to add product")
+
+
+@app.post("/api/agent")
+async def agent_endpoint(request: AgentRequest):
+    try:
+        logger.info(f"Agent endpoint called with use_tools={request.use_tools}")
+
+        freshmart_agent = agent.FreshmartAgent.load_agent()
+
+        if request.use_tools:
+            response = freshmart_agent.with_tools()
+        else:
+            response = freshmart_agent.just_rag()
+
+        return {"response": response}
+    except Exception as e:
+        logger.error(f"Error in agent endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/demo")
