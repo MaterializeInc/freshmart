@@ -97,6 +97,7 @@ dependencies = [
     { name = "psycopg2-binary" },
     { name = "python-dotenv" },
     { name = "sqlalchemy" },
+    { name = "starlette" },
     { name = "uvicorn" },
 ]
 
@@ -107,6 +108,7 @@ requires-dist = [
     { name = "psycopg2-binary", specifier = ">=2.9.10" },
     { name = "python-dotenv", specifier = "==1.2.4" },
     { name = "sqlalchemy", specifier = "==2.1.5" },
+    { name = "starlette", specifier = ">=1.9.0" },
     { name = "uvicorn", specifier = "==0.54.0" },
 ]
 

@@ -17,6 +17,7 @@ dependencies = [
     "python-dotenv==1.2.4",
     "sqlalchemy==2.1.5",
     "asyncpg==0.32.0",
+    "starlette>=1.9.0",
 ]
 
 [tool.hatch.build.targets.wheel]
