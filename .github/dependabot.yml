@@ -6,3 +6,7 @@ updates:
       - /backend
     schedule:
       interval: monthly
+  - package-ecosystem: uv
+    directory: /backend
+    schedule:
+      interval: monthly
