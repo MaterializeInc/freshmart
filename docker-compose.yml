@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17.11@sha256:b8faeff7712663c2773a190181e1246e37e364b887611c04658c28b44e2408fe
+    image: postgres:18.4@sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636
     container_name: postgres
     user: postgres:postgres
     environment:
@@ -52,7 +52,7 @@ services:
     shm_size: 1gb
 
   postgres_init:
-    image: postgres:17.11@sha256:b8faeff7712663c2773a190181e1246e37e364b887611c04658c28b44e2408fe
+    image: postgres:18.4@sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636
     user: postgres:postgres
     volumes:
       - .:/app
@@ -119,7 +119,7 @@ services:
           memory: 8G
 
   materialize_init:
-    image: postgres:17.11@sha256:b8faeff7712663c2773a190181e1246e37e364b887611c04658c28b44e2408fe
+    image: postgres:18.4@sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636
     user: postgres:postgres
     volumes:
       - .:/app
