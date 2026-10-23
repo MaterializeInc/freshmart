@@ -257,18 +257,14 @@ async def get_shopping_cart(expanded=Query(None)):
                 )
 
                 # Get category subtotals with exact precision
-                clause = ""
-                if expanded:
-                    expanded_ids = ",".join(
-                        [
-                            token.strip()
-                            for token in expanded.split(",")
-                            if token.strip().isdigit()
-                        ]
-                    )
-                    clause = f"OR parent_id IN ({expanded_ids})"
+                # Passed as text: asyncpg can't introspect array types on Materialize.
+                expanded_ids = ",".join(
+                    str(int(token))
+                    for token in (expanded or "").split(",")
+                    if token.strip().isdecimal()
+                )
 
-                subtotals = await conn.fetch(f"""
+                subtotals = await conn.fetch("""
                     WITH raw_totals AS (
                         SELECT
                             category_id, 
@@ -278,7 +274,7 @@ async def get_shopping_cart(expanded=Query(None)):
                             item_count,
                             total::numeric(20,10) as raw_total
                         FROM category_totals
-                        WHERE parent_id IS NULL {clause}
+                        WHERE parent_id IS NULL OR parent_id = ANY(string_to_array($1, ',')::int[])
                     ),
                     category_data AS (
                         SELECT
@@ -305,7 +301,7 @@ async def get_shopping_cart(expanded=Query(None)):
                         ROUND((SELECT total FROM total_calc), 2) as categories_total
                     FROM category_data
                     ORDER BY coalesce(parent_id, category_id), category_id;
-                """)
+                """, expanded_ids)
 
                 # Extract the final values
                 categories_total = (
