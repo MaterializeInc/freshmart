@@ -6,6 +6,10 @@ updates:
       - /backend
     schedule:
       interval: monthly
+    ignore:
+      # Stay on the Node LTS line; move majors deliberately.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: uv
     directory: /backend
     schedule:
@@ -14,3 +18,7 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    ignore:
+      # Postgres majors need a data migration; the compose volume layout also changed in 18.
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
